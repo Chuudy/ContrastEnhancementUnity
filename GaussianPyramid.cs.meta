@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 4fd3e880f718da646a9ae73f603950ab
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - gaussianShader: {fileID: 4800000, guid: e7c3ac04eb68fbe468ece8acb7812970, type: 3}
+  - kulikowskiBoostShader: {fileID: 4800000, guid: dd24ecf68b7b13341a39288d30407394,
+      type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
