@@ -4,19 +4,26 @@
 		_SourceTex("Texture", 2D) = "white" {}
 		_Jump("Jump", Range(0, 1024)) = 0
 
-		_Level0("GuasianLevel0", 2D) = "white" {}
-		_Level1("GuasianLevel1", 2D) = "white" {}
-		_Level2("GuasianLevel2", 2D) = "white" {}
-		_Level3("GuasianLevel3", 2D) = "white" {}
+		_Level0("GuassianLevel0", 2D) = "red" {}
+		_Level1("GuassianLevel1", 2D) = "green" {}
+		_Level2("GuassianLevel2", 2D) = "blue" {}
+		_Level3("GuassianLevel3", 2D) = "white" {}
+
+		_CSFLut("CSFLut", 2D) = "white" {}
+		_Rho("Rho", Range(0.1, 32)) = 24
+		_LumSource("SourceLum", Range(0.001, 300)) = 90
+		_LumTarget("TergetLum", Range(0.001, 300)) = 9
 	}
 
 		CGINCLUDE
 			#include "UnityCG.cginc"
 
 			sampler2D _MainTex, _SourceTex;
-	sampler2D _Level0, _Level1, _Level2, _Level3;
+			sampler2D _CSFLut;
+
 			float4 _MainTex_TexelSize;
 			float _Jump;
+			
 
 			struct VertexData {
 				float4 vertex : POSITION;
@@ -61,7 +68,7 @@
 
 			half3 SampleGauss2D(float2 uv, float jump) {
 				// K = [0.05, 0.25, 0.40, 0.25, 0.05];
-				float2 o = _MainTex_TexelSize.xy * float2(jump, jump);
+				float2 o = _MainTex_TexelSize.xy * float2(jump, jump) * 0.25;
 				float s =
 
 					tex2D(_MainTex, uv + o * float2(-2, 2)).r * 0.0025 +
@@ -121,8 +128,34 @@
 				return rgb;
 			}
 
+			float Remap01(float x, float minIn, float maxIn)
+			{
+				return (x - minIn) / (maxIn - minIn);
+			}
+
+			float2 RhoAndLogLumToCSFCoordinates(float rho, float logLum)
+			{
+				float x = Remap01(rho, 1, 32); // values in the LUT are generated for frequencies 1:32
+				float y = Remap01(logLum, -5, 3); // values in the LUT are generated for range -5:3
+				return float2(x, y);
+			}
+
+			float SampleCSF(float rho, float logLum)
+			{
+				float2 uv = RhoAndLogLumToCSFCoordinates(rho, logLum);
+				return tex2D(_CSFLut, uv).r;
+			}
+
+			float KulikowskiBoostG(float l_in, float G_in, float l_out, float rho)
+			{
+				float G_ts = SampleCSF(rho, l_in);
+				float G_td = SampleCSF(rho, l_out);
+				return max(G_in - G_ts + G_td, 0.001f) / G_in;
+			}
+
 		ENDCG
 
+		// -------------------   PASSES   ------------------------------
 
 		SubShader{
 			Cull Off
@@ -133,10 +166,57 @@
 				// Main pass 0
 				CGPROGRAM
 					#pragma vertex VertexProgram
-					#pragma fragment FragmentProgram
+					#pragma fragment FragmentProgram	
 
-					half4 FragmentProgram(Interpolators i) : SV_Target {
-						return half4(SampleBox(i.uv, 1), 1);
+					sampler2D _Level0, _Level1, _Level2, _Level3;
+					float _LumSource, _LumTarget, _Rho;
+
+					float4 FragmentProgram(Interpolators i) : SV_Target {
+											   
+						float g0 = tex2D(_Level0, i.uv).r;
+						float g1 = tex2D(_Level1, i.uv).r;
+						float g2 = tex2D(_Level2, i.uv).r;
+						float g3 = tex2D(_Level3, i.uv).r;
+						
+						float P_in[4];
+
+						P_in[0] = g0 - g1;
+						P_in[1] = g1 - g2;
+						P_in[2] = g2 - g3;
+						P_in[3] = g3;
+						
+						float l_in = g3;
+						float l_out = g3;
+
+						for (int iter = 2; iter >= 0; iter--)
+						{
+							float C_in = P_in[iter];
+
+							float l_source = log10(pow(10, l_in) * _LumSource);
+							float l_target = log10(pow(10, l_out) * _LumTarget);
+
+							float G_est = abs(C_in);
+
+							float rho = _Rho;
+							float m = min(KulikowskiBoostG(l_source, G_est, l_target, rho), 2);
+
+							float C_out = C_in * m;
+
+							l_out = l_out + C_out;
+							l_in = l_in + P_in[iter];
+						}
+
+						float y = pow(10, l_out);
+						return float4(y, y, y, 1);
+
+
+						//float y_out = clamp(pow(10, g0), 0, 1);
+						float3 y_out = g3;
+
+						float3 yuvOut = tex2D(_MainTex, i.uv).rgb;
+						yuvOut.r = y_out;
+
+						return float4(y_out, 1);
 					}
 				ENDCG
 			}
@@ -212,6 +292,7 @@
 				CGPROGRAM
 					#pragma vertex VertexProgram
 					#pragma fragment FragmentProgram
+					#pragma glsl_no_optimize
 
 					half4 FragmentProgram(Interpolators i) : SV_Target {
 						return float(SampleGauss2D(i.uv, _Jump).r);

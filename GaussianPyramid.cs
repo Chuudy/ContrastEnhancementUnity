@@ -32,23 +32,23 @@ public class GaussianPyramid : MonoBehaviour
     public HMD hmd;
 
     [Header("Algorith parameters")]
-    [Range(1, 5)]
-    public int levels = 5;
+    [Range(0, 3)]
+    public int levels = 4;
     public GaussPyramidEnum gaussianPyramidMode;
     [Range(0.001f, 300)]
-    public float luminancePhysical =80;
+    public float luminanceTarget =80;
     [Range(0.001f, 300)]
-    public float luminanacToMimic = 8;
+    public float luminanceSource = 8;
     [Range(0.01f, 4)]
     public float rhoMultiplier = 1;
 
     [Header("Debug parameters")]
-    //public DebugEnum debugMode;
-    [Range(0, 4)]
+    public DebugEnum debugMode;
+    [Range(0, 3)]
     public int previewLevel = 0;
 
 
-    private float resolutionPpd = 0;
+    private float resolutionPpd = 16;
 
     private RenderTexture[] gaussianPyramid = new RenderTexture[5];
     private RenderTexture[] laPlacePyramid = new RenderTexture[5];
@@ -146,6 +146,7 @@ public class GaussianPyramid : MonoBehaviour
             float jump = Mathf.Pow(2f, (float)(i - 1));
             gausianPyramidMat.SetFloat("_Jump", jump);
             RenderTexture levelX = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RFloat, RenderTextureReadWrite.Linear);
+
             if (gaussianPyramidMode == GaussPyramidEnum.FastGausianDoublePass)
             {
                 Graphics.Blit(gaussianPyramid[i - 1], levelX_temp, gausianPyramidMat, GausianBlurPassX);  // Blur X
@@ -157,8 +158,24 @@ public class GaussianPyramid : MonoBehaviour
             }
             gaussianPyramid[i] = levelX;
         }
-        
-        Graphics.Blit(gaussianPyramid[previewLevel], destination, gausianPyramidMat, PreviewLogPass);
+
+
+        // STEP 3
+        // Building Laplacian Pyramid and enhancing contrast
+        gausianPyramidMat.SetFloat("_LumSource", luminanceSource);
+        gausianPyramidMat.SetFloat("_LumTarget", luminanceTarget);
+        gausianPyramidMat.SetFloat("_Rho", rhoMultiplier);
+        gausianPyramidMat.SetTexture("_Level0", gaussianPyramid[0]);
+        gausianPyramidMat.SetTexture("_Level1", gaussianPyramid[1]);
+        gausianPyramidMat.SetTexture("_Level2", gaussianPyramid[2]);
+        gausianPyramidMat.SetTexture("_Level3", gaussianPyramid[3]);
+
+        Graphics.Blit(YUVLTexture, destination, gausianPyramidMat, MainPass);
+
+        if (debugMode == DebugEnum.GaussianPyramid)
+        {
+            Graphics.Blit(gaussianPyramid[previewLevel], destination, gausianPyramidMat, PreviewLogPass);
+        }
 
         // LAST STEP
         // Temporary texture clearance
@@ -229,8 +246,8 @@ public class GaussianPyramid : MonoBehaviour
 
         // Kulikowski Contrast Boost
         kulikowskiBoostMat.SetTexture("_BaseLevelTex", laPlacePyramid[levels - 1]);
-        kulikowskiBoostMat.SetFloat("_LIn", luminancePhysical);
-        kulikowskiBoostMat.SetFloat("_LOut", luminanacToMimic);
+        kulikowskiBoostMat.SetFloat("_LIn", luminanceTarget);
+        kulikowskiBoostMat.SetFloat("_LOut", luminanceSource);
         RenderTexture tempTex = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGBHalf);
         for(int i = 0; i < levels - 1; ++i)
         {
