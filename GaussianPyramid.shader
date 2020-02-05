@@ -3,12 +3,18 @@
 		_MainTex("Texture", 2D) = "white" {}
 		_SourceTex("Texture", 2D) = "white" {}
 		_Jump("Jump", Range(0, 1024)) = 0
+
+		_Level0("GuasianLevel0", 2D) = "white" {}
+		_Level1("GuasianLevel1", 2D) = "white" {}
+		_Level2("GuasianLevel2", 2D) = "white" {}
+		_Level3("GuasianLevel3", 2D) = "white" {}
 	}
 
 		CGINCLUDE
 			#include "UnityCG.cginc"
 
 			sampler2D _MainTex, _SourceTex;
+	sampler2D _Level0, _Level1, _Level2, _Level3;
 			float4 _MainTex_TexelSize;
 			float _Jump;
 
@@ -29,7 +35,7 @@
 				return i;
 			}
 
-			half3 Sample(float2 uv) {
+			float3 Sample(float2 uv) {
 				return tex2D(_MainTex, uv).rgb;
 			}
 
@@ -41,15 +47,54 @@
 				return s * 0.25f;
 			}
 
-			half3 SampleGauss(float2 uv, float jump, float2 dim) {
+			half3 SampleGauss1D(float2 uv, float jump, float2 dim) {
 				// K = [0.05, 0.25, 0.40, 0.25, 0.05];
 				float2 o = _MainTex_TexelSize.xy * float2(jump, jump) * dim;
-				half3 s =
-					Sample(uv - o * 2) * 0.05 +
-					Sample(uv - o * 1) * 0.25 +
-					Sample(uv) * 0.40 +
-					Sample(uv + o * 1) * 0.25 +
-					Sample(uv + o * 2) * 0.05;;
+				float s =
+					tex2D(_MainTex, uv - o * 2	).r * 0.05 +
+					tex2D(_MainTex, uv - o		).r * 0.25 +
+					tex2D(_MainTex, uv			).r * 0.4 +
+					tex2D(_MainTex, uv + o		).r * 0.25 +
+					tex2D(_MainTex, uv + o * 2	).r * 0.05;
+				return s;
+			}
+
+			half3 SampleGauss2D(float2 uv, float jump) {
+				// K = [0.05, 0.25, 0.40, 0.25, 0.05];
+				float2 o = _MainTex_TexelSize.xy * float2(jump, jump);
+				float s =
+
+					tex2D(_MainTex, uv + o * float2(-2, 2)).r * 0.0025 +
+					tex2D(_MainTex, uv + o * float2(-1, 2)).r * 0.0125 +
+					tex2D(_MainTex, uv + o * float2(0, 2)).r * 0.02 +
+					tex2D(_MainTex, uv + o * float2(1, 2)).r * 0.0125 +
+					tex2D(_MainTex, uv + o * float2(2, 2)).r * 0.0025 +
+
+					tex2D(_MainTex, uv + o * float2(-2, 1)).r * 0.0125 +
+					tex2D(_MainTex, uv + o * float2(-1, 1)).r * 0.0625 +
+					tex2D(_MainTex, uv + o * float2(0, 1)).r * 0.1 +
+					tex2D(_MainTex, uv + o * float2(1, 1)).r * 0.0625 +
+					tex2D(_MainTex, uv + o * float2(2, 1)).r * 0.0125 +
+
+					tex2D(_MainTex, uv + o * float2(-2, 0)).r * 0.02 +
+					tex2D(_MainTex, uv + o * float2(-1, 0)).r * 0.1 +
+					tex2D(_MainTex, uv + o * float2(0, 0)).r * 0.16 +
+					tex2D(_MainTex, uv + o * float2(1, 0)).r * 0.1 +
+					tex2D(_MainTex, uv + o * float2(2, 0)).r * 0.02 +
+
+					tex2D(_MainTex, uv + o * float2(-2, -1)).r * 0.0125 +
+					tex2D(_MainTex, uv + o * float2(-1, -1)).r * 0.0625 +
+					tex2D(_MainTex, uv + o * float2(0, -1)).r * 0.1 +
+					tex2D(_MainTex, uv + o * float2(1, -1)).r * 0.0625 +
+					tex2D(_MainTex, uv + o * float2(2, -1)).r * 0.0125 +
+
+					tex2D(_MainTex, uv + o * float2(-2, -2)).r * 0.0025 +
+					tex2D(_MainTex, uv + o * float2(-1, -2)).r * 0.0125 +
+					tex2D(_MainTex, uv + o * float2(0, -2)).r * 0.02 +
+					tex2D(_MainTex, uv + o * float2(1, -2)).r * 0.0125 +
+					tex2D(_MainTex, uv + o * float2(2, -2)).r * 0.0025;
+
+					
 				return s;
 			}
 
@@ -84,6 +129,98 @@
 			ZTest Always
 			ZWrite Off
 			
+			Pass {
+				// Main pass 0
+				CGPROGRAM
+					#pragma vertex VertexProgram
+					#pragma fragment FragmentProgram
+
+					half4 FragmentProgram(Interpolators i) : SV_Target {
+						return half4(SampleBox(i.uv, 1), 1);
+					}
+				ENDCG
+			}
+			
+			Pass {
+				// PreviewLog 1
+				CGPROGRAM
+					#pragma vertex VertexProgram
+					#pragma fragment FragmentProgram
+
+					float4 FragmentProgram(Interpolators i) : SV_Target {
+
+						float l = tex2D(_MainTex, i.uv).r;
+						float y = pow(10, l);
+						return float4(y,y,y,1);
+					}
+				ENDCG
+			}
+
+			Pass {
+				// RGB to YUVL 2
+				CGPROGRAM
+					#pragma vertex VertexProgram
+					#pragma fragment FragmentProgram
+
+					float4 FragmentProgram(Interpolators i) : SV_Target {
+
+						float3 rgbClamped = clamp(Sample(i.uv), 0.01, 1);
+						float3 yuv = rgb2Yuv(rgbClamped);
+						return float4(yuv.rgb, log10(yuv.r));
+					}
+				ENDCG
+			}
+
+			Pass {
+				// YUVL to L 3
+				CGPROGRAM
+					#pragma vertex VertexProgram
+					#pragma fragment FragmentProgram
+
+					float FragmentProgram(Interpolators i) : SV_Target {
+						return tex2D(_MainTex, i.uv).w;
+					}
+				ENDCG
+			}
+
+			Pass {
+				// Gaussian Blur X pass 4
+				CGPROGRAM
+					#pragma vertex VertexProgram
+					#pragma fragment FragmentProgram
+
+					float FragmentProgram(Interpolators i) : SV_Target {
+						return float(SampleGauss1D(i.uv, _Jump, float2(1,0)).r);
+					}
+				ENDCG
+			}
+
+			Pass {
+				// Gaussian Blur Y pass 5
+				CGPROGRAM
+					#pragma vertex VertexProgram
+					#pragma fragment FragmentProgram
+
+					half4 FragmentProgram(Interpolators i) : SV_Target {
+						return float(SampleGauss1D(i.uv, _Jump, float2(0,1)).r);
+					}
+				ENDCG
+			}
+
+			Pass {
+				// Gaussian Blur 2D pass 6
+				CGPROGRAM
+					#pragma vertex VertexProgram
+					#pragma fragment FragmentProgram
+
+					half4 FragmentProgram(Interpolators i) : SV_Target {
+						return float(SampleGauss2D(i.uv, _Jump).r);
+					}
+				ENDCG
+			}
+
+
+
 			Pass { 
 				// Downsample pass 0
 				CGPROGRAM
@@ -122,29 +259,7 @@
 				ENDCG
 			}
 
-			Pass {
-				// Gaussian Blur X pass 3
-				CGPROGRAM
-					#pragma vertex VertexProgram
-					#pragma fragment FragmentProgram
-				
-					half4 FragmentProgram(Interpolators i) : SV_Target {
-						return half4(SampleGauss(i.uv, _Jump, float2(1,0)), 1);
-					}
-				ENDCG
-			}
-
-			Pass {
-				// Gaussian Blur Y pass 4
-				CGPROGRAM
-					#pragma vertex VertexProgram
-					#pragma fragment FragmentProgram
-
-					half4 FragmentProgram(Interpolators i) : SV_Target {
-						return half4(SampleGauss(i.uv, _Jump, float2(0,1)), 1);
-					}
-				ENDCG
-				}
+			
 
 			Pass {
 				// RGB to luminance pass 5

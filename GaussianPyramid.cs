@@ -14,12 +14,13 @@ public class GaussianPyramid : MonoBehaviour
 
     public enum GaussPyramidEnum
     {
-        Downsampling,
-        FastGausian
+        FastGausianDoublePass,
+        FastGausian2D
     }
 
     public enum HMD
     {
+        ValveIndex,
         OculusRiftCV1
     }
 
@@ -31,32 +32,40 @@ public class GaussianPyramid : MonoBehaviour
     public HMD hmd;
 
     [Header("Algorith parameters")]
-    [Range(1, 10)]
-    public int levels = 10;
+    [Range(1, 5)]
+    public int levels = 5;
     public GaussPyramidEnum gaussianPyramidMode;
     [Range(0.001f, 300)]
-    public float luminancePhysical = 8;
+    public float luminancePhysical =80;
     [Range(0.001f, 300)]
-    public float luminanacToMimic = 80;
+    public float luminanacToMimic = 8;
     [Range(0.01f, 4)]
     public float rhoMultiplier = 1;
 
     [Header("Debug parameters")]
-    public DebugEnum debugMode;
-    [Range(1, 10)]
-    public int previewLevel = 1;
+    //public DebugEnum debugMode;
+    [Range(0, 4)]
+    public int previewLevel = 0;
 
 
     private float resolutionPpd = 0;
 
-    private RenderTexture[] gaussianPyramid = new RenderTexture[10];
-    private RenderTexture[] laPlacePyramid = new RenderTexture[10];
+    private RenderTexture[] gaussianPyramid = new RenderTexture[5];
+    private RenderTexture[] laPlacePyramid = new RenderTexture[5];
 
     private Material gausianPyramidMat;
     private Material kulikowskiBoostMat;
 
-    private const int GausianBlurPassX = 3;
-    private const int GausianBlurPassY = 4;
+    private const int MainPass = 0;
+
+    private const int PreviewLogPass = 1;
+    private const int Rgb2YuvlPass = 2;
+    private const int Yuvl2LPass = 3;
+
+    private const int GausianBlurPassX = 4;
+    private const int GausianBlurPassY = 5;
+    private const int GausianBlur2DPass = 6;
+
     private const int RGBtoYPass = 5;
     private const int LaPlaceDiffPass = 6;
     private const int LaPlaceSumPass = 7;
@@ -65,7 +74,7 @@ public class GaussianPyramid : MonoBehaviour
     private const int BoxUpPass = 1;
     private const int DiffPass = 2;
 
-    private bool toggle = true;
+    public bool toggle = true;
 
     RenderTexture level0, levelX_temp, levelX;
 
@@ -86,11 +95,20 @@ public class GaussianPyramid : MonoBehaviour
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
+
+        // Toggle contrast enhancement
         if(!toggle)
         {
             Graphics.Blit(source, destination);
             return;
         }
+
+        // Init resolution
+        if (hmd == HMD.OculusRiftCV1)
+            resolutionPpd = 12;
+
+        if (hmd == HMD.ValveIndex)
+            resolutionPpd = 18;
 
         // Init Materials if don't exist
         if (gausianPyramidMat == null)
@@ -107,6 +125,52 @@ public class GaussianPyramid : MonoBehaviour
                 hideFlags = HideFlags.HideAndDontSave
             };
         }
+
+        // STEP 1
+        // RGB to LUVY conversion
+        RenderTexture YUVLTexture = new RenderTexture(source.width, source.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.sRGB);
+        YUVLTexture.useMipMap = true;
+        YUVLTexture.Create();
+        Graphics.Blit(source, YUVLTexture, gausianPyramidMat, Rgb2YuvlPass);
+               
+
+        // STEP 2
+        // Gaussian Pyramid creation
+        RenderTexture level0 = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RFloat, RenderTextureReadWrite.Linear);
+        Graphics.Blit(YUVLTexture, level0, gausianPyramidMat, Yuvl2LPass);
+        gaussianPyramid[0] = level0;
+
+        RenderTexture levelX_temp = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RFloat, RenderTextureReadWrite.Linear);
+        for (int i = 1; i < levels; ++i)
+        {
+            float jump = Mathf.Pow(2f, (float)(i - 1));
+            gausianPyramidMat.SetFloat("_Jump", jump);
+            RenderTexture levelX = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RFloat, RenderTextureReadWrite.Linear);
+            if (gaussianPyramidMode == GaussPyramidEnum.FastGausianDoublePass)
+            {
+                Graphics.Blit(gaussianPyramid[i - 1], levelX_temp, gausianPyramidMat, GausianBlurPassX);  // Blur X
+                Graphics.Blit(levelX_temp, levelX, gausianPyramidMat, GausianBlurPassY);  // Blur Y
+            }
+            if(gaussianPyramidMode == GaussPyramidEnum.FastGausian2D)
+            {
+                Graphics.Blit(gaussianPyramid[i - 1], levelX, gausianPyramidMat, GausianBlur2DPass);
+            }
+            gaussianPyramid[i] = levelX;
+        }
+        
+        Graphics.Blit(gaussianPyramid[previewLevel], destination, gausianPyramidMat, PreviewLogPass);
+
+        // LAST STEP
+        // Temporary texture clearance
+        for (int i = 0; i < levels; ++i)
+        {
+            RenderTexture.ReleaseTemporary(gaussianPyramid[i]);
+        }
+        RenderTexture.ReleaseTemporary(levelX_temp);
+        YUVLTexture.Release();
+        
+
+        return;
 
         //Init Textures
         if(level0 == null)
@@ -130,7 +194,7 @@ public class GaussianPyramid : MonoBehaviour
         gaussianPyramid[0] = level0;
 
         // Genearting levels of gaussian pyramid
-        if (gaussianPyramidMode == GaussPyramidEnum.Downsampling)
+        //if (gaussianPyramidMode == GaussPyramidEnum.Downsampling)
         for (int i = 1; i < levels; ++i)
         {
             int scale = (int)Mathf.Pow(2f, i);
@@ -138,7 +202,7 @@ public class GaussianPyramid : MonoBehaviour
             Graphics.Blit(gaussianPyramid[i-1], levelX);
             gaussianPyramid[i] = levelX;
         }
-        else if(gaussianPyramidMode == GaussPyramidEnum.FastGausian)
+        //else if(gaussianPyramidMode == GaussPyramidEnum.FastGausian)
         {
             for (int i = 1; i < levels; ++i)
             {
@@ -201,18 +265,18 @@ public class GaussianPyramid : MonoBehaviour
         if (previewLevel > levels)
             previewLevel = levels;
 
-        if (debugMode == DebugEnum.GaussianPyramid)
-        {
-            Graphics.Blit(gaussianPyramid[previewLevel - 1], destination);
-        }
-        else if(debugMode == DebugEnum.LaPlacePyramid)
-        {
-            Graphics.Blit(laPlacePyramid[previewLevel - 1], destination);
-        }
-        else if (debugMode == DebugEnum.NoDebug)
-        {
-            Graphics.Blit(yOut, destination);
-        }
+        //if (debugMode == DebugEnum.GaussianPyramid)
+        //{
+        //    Graphics.Blit(gaussianPyramid[previewLevel - 1], destination);
+        //}
+        //else if(debugMode == DebugEnum.LaPlacePyramid)
+        //{
+        //    Graphics.Blit(laPlacePyramid[previewLevel - 1], destination);
+        //}
+        //else if (debugMode == DebugEnum.NoDebug)
+        //{
+        //    Graphics.Blit(yOut, destination);
+        //}
 
         // Clean up
         RenderTexture.ReleaseTemporary(yOut);
