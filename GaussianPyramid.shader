@@ -56,7 +56,7 @@
 
 			half3 SampleGauss1D(float2 uv, float jump, float2 dim) {
 				// K = [0.05, 0.25, 0.40, 0.25, 0.05];
-				float2 o = _MainTex_TexelSize.xy * float2(jump, jump) * dim;
+				float2 o = _MainTex_TexelSize.xy * float2(jump, jump) * dim * 0.5;
 				float s =
 					tex2D(_MainTex, uv - o * 2	).r * 0.05 +
 					tex2D(_MainTex, uv - o		).r * 0.25 +
@@ -68,7 +68,7 @@
 
 			half3 SampleGauss2D(float2 uv, float jump) {
 				// K = [0.05, 0.25, 0.40, 0.25, 0.05];
-				float2 o = _MainTex_TexelSize.xy * float2(jump, jump) * 0.25;
+				float2 o = _MainTex_TexelSize.xy * float2(jump, jump) * 0.5;
 				float s =
 
 					tex2D(_MainTex, uv + o * float2(-2, 2)).r * 0.0025 +
@@ -150,7 +150,7 @@
 			{
 				float G_ts = SampleCSF(rho, l_in);
 				float G_td = SampleCSF(rho, l_out);
-				return max(G_in - G_ts + G_td, 0.001f) / G_in;
+				return max(G_in - G_ts + G_td, 0.00000001f) / G_in;
 			}
 
 		ENDCG
@@ -205,18 +205,13 @@
 							l_out = l_out + C_out;
 							l_in = l_in + P_in[iter];
 						}
-
-						float y = pow(10, l_out);
-						return float4(y, y, y, 1);
-
-
-						//float y_out = clamp(pow(10, g0), 0, 1);
-						float3 y_out = g3;
+											   
+						float3 y_out = pow(10, l_out);
 
 						float3 yuvOut = tex2D(_MainTex, i.uv).rgb;
 						yuvOut.r = y_out;
 
-						return float4(y_out, 1);
+						return float4(yuv2rgb(yuvOut), 1);
 					}
 				ENDCG
 			}

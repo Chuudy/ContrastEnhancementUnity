@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Valve.VR;
 
 [ExecuteInEditMode, ImageEffectAllowedInSceneView]
 public class GaussianPyramid : MonoBehaviour
@@ -14,8 +15,8 @@ public class GaussianPyramid : MonoBehaviour
 
     public enum GaussPyramidEnum
     {
-        FastGausianDoublePass,
-        FastGausian2D
+        FastGausian2D,
+        FastGausianDoublePass
     }
 
     public enum HMD
@@ -36,9 +37,9 @@ public class GaussianPyramid : MonoBehaviour
     public int levels = 4;
     public GaussPyramidEnum gaussianPyramidMode;
     [Range(0.001f, 300)]
-    public float luminanceTarget =80;
+    public float luminanceTarget =8;
     [Range(0.001f, 300)]
-    public float luminanceSource = 8;
+    public float luminanceSource = 80;
     [Range(0.01f, 4)]
     public float rhoMultiplier = 1;
 
@@ -78,6 +79,8 @@ public class GaussianPyramid : MonoBehaviour
 
     RenderTexture level0, levelX_temp, levelX;
 
+    public SteamVR_Input_Sources rightHand = SteamVR_Input_Sources.RightHand;
+
     private void OnDestroy()
     {
         RenderTexture.ReleaseTemporary(levelX_temp);
@@ -91,6 +94,11 @@ public class GaussianPyramid : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.T))
             toggle = !toggle;
+
+        if(SteamVR_Input.GetStateDown("GrabPinch", rightHand))
+        {
+            toggle = !toggle;
+        }
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
