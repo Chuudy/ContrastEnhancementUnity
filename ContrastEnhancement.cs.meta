@@ -4,7 +4,8 @@ MonoImporter:
   externalObjects: {}
   serializedVersion: 2
   defaultReferences:
-  - testShader: {fileID: 4800000, guid: f13f2be5f59fd0042a124ceb8aa23952, type: 3}
+  - contrastEnhancementShader: {fileID: 4800000, guid: f13f2be5f59fd0042a124ceb8aa23952,
+      type: 3}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 
