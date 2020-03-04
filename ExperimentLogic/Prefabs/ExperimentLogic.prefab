@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &905872599725515597
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2509868332407310675}
+  - component: {fileID: 5502780464968426272}
+  m_Layer: 0
+  m_Name: ExperimentLogic
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2509868332407310675
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 905872599725515597}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.82223654, y: 2.5, z: 8.21}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &5502780464968426272
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 905872599725515597}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ef4ab71cb1fcbcf48929211292cc4a4d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 0}
+  instancedObject: {fileID: 5563573075463929679, guid: fcbfdd3e9dd06d14eada2805905d17c1,
+    type: 3}
+  SkyBoxMaterial: {fileID: 2100000, guid: 415ffbd766610794a97befd8309c965f, type: 2}
+  StimuliMaterial: {fileID: 2100000, guid: 83b6791389d58144dbfe2ac680ca90ed, type: 2}
+  distanceRange: {x: 5, y: 10}
+  scaleRange: {x: 0.8, y: 1.2}
+  angleBetweenCenters: 30
+  baseDistance: 0
+  secondObjectDistance: 0
+  dioptricDistnaceDifference: 0.1
+  backgroundValue: 0.5
+  contrast: 0.1
+  perceptualyEqualizeSize: 0
+  removeParalax: 0
