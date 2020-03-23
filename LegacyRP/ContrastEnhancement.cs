@@ -17,6 +17,9 @@ public class ContrastEnhancement : MonoBehaviour
     public Texture lutTexture;
     private Material contrastEnhancementMaterial;
 
+    public GameObject linearDriver;
+    private Valve.VR.InteractionSystem.LinearMapping driver;
+
     public bool toggle = true;
 
     [Header("Algorith parameters")]
@@ -50,6 +53,11 @@ public class ContrastEnhancement : MonoBehaviour
 
         ////// assign lut texture to the material
         contrastEnhancementMaterial.SetTexture("_CSFLut", lutTexture);
+
+        if (linearDriver == null)
+            Debug.LogError("LinearDriverNotAssigned");
+        else
+            driver = linearDriver.GetComponent<Valve.VR.InteractionSystem.LinearMapping>();
     }
 
     private void Update()
@@ -65,6 +73,9 @@ public class ContrastEnhancement : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Escape))
             Application.Quit();
+
+        if(driver != null)
+            enhancementMultiplier = Mathf.Lerp(0, 2, driver.value);
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
