@@ -78,7 +78,7 @@ float4 Gaussk9c4Horizontal(int2 uv, float sigma)
 	return final_colour / (Z * Z);
 }
 
-float4 Gauss2Dk9c4(int2 uv, float sigma)
+float4 Gaussk9c4Vertical(int2 uv, float sigma)
 {
 	//declare stuff
 	const int mSize = 9;
