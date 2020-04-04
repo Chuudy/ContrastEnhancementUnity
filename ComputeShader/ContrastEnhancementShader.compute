@@ -1,0 +1,164 @@
+﻿// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+#pragma kernel CSGetLuminance
+#pragma kernel CSBlur
+
+// Create a RenderTexture with enableRandomWrite flag and set it
+// with cs.SetTexture
+float kernel5[5];
+float kernel9[5];
+RWTexture2D<float4> YUVL;
+RWTexture2D<float4> Result;
+
+float normpdf(float x, float sigma)
+{
+	return 0.39894 * exp(-0.5 * x * x / (sigma * sigma)) / sigma;
+}
+float4 Gauss2Dk9c4(int2 uv, float sigma)
+{
+	//declare stuff
+	const int mSize = 9;
+	const int kSize = (mSize - 1) / 2;
+	float kernel[mSize];
+	float4 final_colour = float4(0, 0, 0, 0);
+
+	//create the 1-D kernel
+	float Z = 0.0;
+	for (int j = 0; j <= kSize; ++j)
+	{
+		kernel[kSize + j] = kernel[kSize - j] = normpdf(float(j), sigma);
+	}
+
+	//get the normalization factor (as the gaussian has been clamped)
+	for (int k = 0; k < mSize; ++k)
+	{
+		Z += kernel[k];
+	}
+
+	//read out the texels
+	for (int i = -kSize; i <= kSize; ++i)
+	{
+		for (int j = -kSize; j <= kSize; ++j)
+		{
+			final_colour += kernel[kSize + j] * kernel[kSize + i] * YUVL[uv + int2(i, j)];
+		}
+	}
+	return final_colour / (Z * Z);
+}
+
+float4 Gaussk9c4Horizontal(int2 uv, float sigma)
+{
+	//declare stuff
+	const int mSize = 9;
+	const int kSize = (mSize - 1) / 2;
+	float kernel[mSize];
+	float4 final_colour = float4(0, 0, 0, 0);
+
+	//create the 1-D kernel
+	float Z = 0.0;
+	for (int j = 0; j <= kSize; ++j)
+	{
+		kernel[kSize + j] = kernel[kSize - j] = normpdf(float(j), sigma);
+	}
+
+	//get the normalization factor (as the gaussian has been clamped)
+	for (int k = 0; k < mSize; ++k)
+	{
+		Z += kernel[k];
+	}
+
+	//read out the texels
+	for (int i = -kSize; i <= kSize; ++i)
+	{
+		for (int j = -kSize; j <= kSize; ++j)
+		{
+			final_colour += kernel[kSize + j] * kernel[kSize + i] * YUVL[uv + int2(i, j)];
+		}
+	}
+	return final_colour / (Z * Z);
+}
+
+float4 Gauss2Dk9c4(int2 uv, float sigma)
+{
+	//declare stuff
+	const int mSize = 9;
+	const int kSize = (mSize - 1) / 2;
+	float kernel[mSize];
+	float4 final_colour = float4(0, 0, 0, 0);
+
+	//create the 1-D kernel
+	float Z = 0.0;
+	for (int j = 0; j <= kSize; ++j)
+	{
+		kernel[kSize + j] = kernel[kSize - j] = normpdf(float(j), sigma);
+	}
+
+	//get the normalization factor (as the gaussian has been clamped)
+	for (int k = 0; k < mSize; ++k)
+	{
+		Z += kernel[k];
+	}
+
+	//read out the texels
+	for (int i = -kSize; i <= kSize; ++i)
+	{
+		for (int j = -kSize; j <= kSize; ++j)
+		{
+			final_colour += kernel[kSize + j] * kernel[kSize + i] * YUVL[uv + int2(i, j)];
+		}
+	}
+	return final_colour / (Z * Z);
+}
+float Remap01(float x, float minIn, float maxIn)
+{
+	return (x - minIn) / (maxIn - minIn);
+}
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    Result[id.xy] = float4(id.x & id.y, (id.x & 15)/15.0, (id.y & 15)/15.0, 0.0);
+	YUVL[id.xy] = (YUVL[id.xy] + YUVL[id.xy + int2(-1,0)] + YUVL[id.xy + int2(-2, 0)] + YUVL[id.xy + int2(-3, 0)] + YUVL[id.xy + int2(-4, 0)])/5;
+	Result[id.xy] = (float4(YUVL[id.xy]));
+}
+
+[numthreads(8, 8, 1)]
+void CSGetLuminance(uint3 id : SV_DispatchThreadID)
+{
+	Result[id.xy] = YUVL[id.xy];
+
+	float3 rgb = clamp(YUVL[id.xy].rgb, 0.00001, 1);
+	float3x3 m_rgb2yuv = float3x3(	0.299f, 0.587f, 0.114f,
+									-0.147f, -0.289f, 0.437f,
+									0.615f, -0.515f, -0.100f);
+	float3 yuv = mul(m_rgb2yuv, rgb);
+	YUVL[id.xy] = float4(yuv, log10(yuv.r));
+	
+	////preview
+	//Result[id.xy] = pow(10,YUVL[id.xy].w);
+}
+
+[numthreads(8, 8, 1)]
+void CSBlur(uint3 id : SV_DispatchThreadID)
+{
+
+	//Result[id.xy] = pow(10, YUVL[id.xy].w);
+
+	float g0 = YUVL[id.xy].w;
+	float g1 = Gauss2Dk9c4(id.xy, 2).w;
+	float g2 = Gauss2Dk9c4(id.xy, 4).w;
+
+	float P_in[3];
+
+	P_in[0] = g0 - g1;
+	P_in[1] = g1 - g2;
+	P_in[2] = g2;
+
+	float y = P_in[0];
+
+	Result[id.xy] = float4(y, y, y, 1); 
+
+	//Result[id.xy] = (YUVL[id.xy] + YUVL[id.xy + int2(-1, 0)] + YUVL[id.xy + int2(-2, 0)] + YUVL[id.xy + int2(-3, 0)] + YUVL[id.xy + int2(-4, 0)]) / 5;
+	//Result[id.xy] = YUVL[id.xy];
+}
+
