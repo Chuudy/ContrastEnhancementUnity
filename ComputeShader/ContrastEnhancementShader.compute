@@ -2,11 +2,16 @@
 #pragma kernel CSMain
 #pragma kernel CSGetLuminance
 #pragma kernel CSBlur
+#pragma kernel CSBlurTest5k4c
+#pragma kernel CSBlurTest9
+#pragma kernel CSBlurTest5
 
 // Create a RenderTexture with enableRandomWrite flag and set it
 // with cs.SetTexture
 float kernel5[5];
-float kernel9[5];
+float kernel9[9];
+float Z9;
+float Z5;
 RWTexture2D<float4> YUVL;
 RWTexture2D<float4> Result;
 
@@ -109,6 +114,7 @@ float4 Gaussk9c4Vertical(int2 uv, float sigma)
 	}
 	return final_colour / (Z * Z);
 }
+
 float Remap01(float x, float minIn, float maxIn)
 {
 	return (x - minIn) / (maxIn - minIn);
@@ -157,8 +163,61 @@ void CSBlur(uint3 id : SV_DispatchThreadID)
 	float y = P_in[0];
 
 	Result[id.xy] = float4(y, y, y, 1); 
+	Result[id.xy] = Gauss2Dk9c4(id.xy, 4);
 
 	//Result[id.xy] = (YUVL[id.xy] + YUVL[id.xy + int2(-1, 0)] + YUVL[id.xy + int2(-2, 0)] + YUVL[id.xy + int2(-3, 0)] + YUVL[id.xy + int2(-4, 0)]) / 5;
 	//Result[id.xy] = YUVL[id.xy];
 }
 
+[numthreads(8, 8, 1)]
+void CSBlurTest5k4c(uint3 id : SV_DispatchThreadID)
+{
+	int mSize = 5;
+	int kSize = (mSize - 1) / 2;
+	float4 final_colour = float4(0, 0, 0, 0);
+
+	for (int i = -kSize; i <= kSize; ++i)
+	{
+		for (int j = -kSize; j <= kSize; ++j)
+		{
+			final_colour += kernel5[j + kSize] * kernel5[kSize + i] * YUVL[id.xy + int2(i, j)];
+		}
+	}
+	Result[id.xy] = final_colour / (Z5*Z5);
+}
+
+[numthreads(8, 8, 1)]
+void CSBlurTest9(uint3 id : SV_DispatchThreadID)
+{
+	int mSize = 9;
+	int kSize = (mSize - 1) / 2;
+	float4 final_colour = float4(0, 0, 0, 0);
+
+	for (int i = -kSize; i <= kSize; ++i)
+	{
+		for (int j = -kSize; j <= kSize; ++j)
+		{
+			final_colour += kernel9[j + kSize] * kernel9[kSize + i] * YUVL[id.xy + int2(i, j)];
+		}
+	}
+	Result[id.xy] = final_colour / (Z9*Z9);
+}
+
+[numthreads(8, 8, 1)]
+void CSBlurTest5(uint3 id : SV_DispatchThreadID)
+{
+	int mSize = 5;
+	int kSize = (mSize - 1) / 2;
+	float4 final_colour = float4(0, 0, 0, 0);
+
+	for (int i = -kSize; i <= kSize; ++i)
+	{
+		for (int j = -kSize; j <= kSize; ++j)
+		{
+			final_colour += kernel5[kSize + j] * kernel5[kSize + i] * YUVL[id.xy + int2(i, j)];
+		}
+	}
+	float y = kernel5[2];
+	Result[id.xy] = final_colour / (Z5*Z5);
+	//Result[id.xy] = float4(y,y,y,y);// / (Z5*Z5);
+}

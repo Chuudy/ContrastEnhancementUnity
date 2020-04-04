@@ -23,7 +23,7 @@ public class ContrastEnhancement : MonoBehaviour
     void Start()
     {
         GenerateKernel(ref kernel5, ref Z5, 5, 2);
-        GenerateKernel(ref kernel9, ref Z9, 5, 4);
+        GenerateKernel(ref kernel9, ref Z9, 9, 4);
 
         Debug.Log(Z5);
         Debug.Log(Z9);
@@ -47,17 +47,27 @@ public class ContrastEnhancement : MonoBehaviour
         if (toggle)
         {
             Graphics.Blit(InputTexture, YUVL);
+            
+            shader.SetFloats("kernel5", kernel5);
+            shader.SetFloat("Z5", Z5);
+            shader.SetFloats("kernel9", kernel9);
+            shader.SetFloat("Z9", Z9);
 
             int getLuminanceKernelHandle = shader.FindKernel("CSGetLuminance");
             int blurKernelHandle = shader.FindKernel("CSBlur");
+            int blurTestKernelHandle = shader.FindKernel("CSBlurTest9");
 
             shader.SetTexture(getLuminanceKernelHandle, "Result", RT);
             shader.SetTexture(getLuminanceKernelHandle, "YUVL", YUVL);
-            shader.Dispatch(getLuminanceKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
+            //shader.Dispatch(getLuminanceKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
 
             shader.SetTexture(blurKernelHandle, "Result", RT);
             shader.SetTexture(blurKernelHandle, "YUVL", YUVL);
-            shader.Dispatch(blurKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
+            //shader.Dispatch(blurKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
+
+            shader.SetTexture(blurTestKernelHandle, "Result", RT);
+            shader.SetTexture(blurTestKernelHandle, "YUVL", YUVL);
+            shader.Dispatch(blurTestKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
         }
 
         else
@@ -74,18 +84,18 @@ public class ContrastEnhancement : MonoBehaviour
 
     void GenerateKernel(ref float[] kernel, ref float Z, int mSize, float sigma)
     {
-        kernel = new float[mSize];
         int kSize = (mSize - 1) / 2;
+        kernel = new float[mSize*4];
+
+        Z = 0.0f;
         for (int j = 0; j <= kSize; ++j)
         {
-            kernel[kSize + j] = kernel[kSize - j] = Normpdf((float)j, sigma);
+            kernel[kSize*4 + j*4] = kernel[kSize*4 - j*4] = Normpdf(j, sigma);
         }
 
-        Z = 0;
-        for (int k = 0; k < mSize; ++k)
+        for (int k = 0; k < mSize*4; k+=4)
         {
             Z += kernel[k];
         }
-        Z = Z * Z;
     }
 }
