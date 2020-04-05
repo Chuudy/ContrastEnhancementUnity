@@ -18,6 +18,11 @@
 	sampler2D _CSFLut;
 	float4 _MainTex_TexelSize;
 
+	float _kernel5[5];
+	float _kernel9[9];
+	float _Z9;
+	float _Z5;
+
 	struct VertexData {
 		float4 vertex : POSITION;
 		float2 uv : TEXCOORD0;
@@ -160,6 +165,25 @@
 		return final_colour / (Z * Z);
 	}
 
+	float Gauss2Dk9c1_Opt(float2 uv)
+	{
+		//declare stuff
+		const int mSize = 9;
+		float2 o = _MainTex_TexelSize.xy * 0.5;
+		const int kSize = (mSize - 1) / 2;
+		float final_colour = 0;
+
+		//read out the texels
+		for (int i = -kSize; i <= kSize; ++i)
+		{
+			for (int j = -kSize; j <= kSize; ++j)
+			{
+				final_colour += _kernel9[kSize + j] * _kernel9[kSize + i] * tex2D(_MainTex, uv + float2(i, j) * o);
+			}
+		}
+		return final_colour / (_Z9 * _Z9);
+	}
+
 	float Gauss2Dk5c1(float2 uv, float sigma)
 	{
 		//declare stuff
@@ -242,7 +266,8 @@
 				{
 					float g0 = tex2D(_MainTex, i.uv);
 					float g1 = Gauss2Dk5c1(i.uv, 2);
-					float g2 = Gauss2Dk9c1(i.uv, 4);
+					//float g2 = Gauss2Dk9c1(i.uv, 4);
+					float g2 = Gauss2Dk9c1_Opt(i.uv);
 			
 					float P_in[3];
 
@@ -281,6 +306,8 @@
 					float3 yuvOut = tex2D(_YuvlTex, i.uv).rgb;
 					yuvOut.r = y_out;
 
+					//float res = _kernel9[4];
+					//return float4(res,res,res, 1);
 					return float4(yuv2rgb(yuvOut), 1);
 
 				}

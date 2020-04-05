@@ -34,8 +34,22 @@ public class ContrastEnhancement : MonoBehaviour
 
     private SteamVR_Input_Sources rightHand = SteamVR_Input_Sources.RightHand;
 
+    private float[] kernel5;
+    private float[] kernel9;
+    private float Z5;
+    private float Z9;
+
     private void Start()
     {
+        ////// Generating kernels and divisors for gaussian blur
+        GenerateKernel(ref kernel5, ref Z5, 5, 2);
+        GenerateKernel(ref kernel9, ref Z9, 9, 4);
+
+        foreach (var val in kernel5)
+        {
+            Debug.Log(val);
+        }
+
         ////// check if shader and texture exist
         if (contrastEnhancementShader == null)
             Debug.LogError("Post process shader not assigned in the script");
@@ -86,6 +100,12 @@ public class ContrastEnhancement : MonoBehaviour
             return;
         }
 
+        ////// kernels setup 
+        contrastEnhancementMaterial.SetFloatArray("_kernel5", kernel5);
+        contrastEnhancementMaterial.SetFloatArray("_kernel9", kernel9);
+        contrastEnhancementMaterial.SetFloat("_Z5", Z5);
+        contrastEnhancementMaterial.SetFloat("_Z9", Z9);
+
         contrastEnhancementMaterial.SetFloat("_EnhancementMultiplier", enhancementMultiplier);        
 
         RenderTexture YUVL = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGBFloat);
@@ -112,5 +132,27 @@ public class ContrastEnhancement : MonoBehaviour
         //Graphics.Blit(source, destination, testMaterial, 1);
         //Graphics.Blit(source, destination, contrastEnhancementMaterial, 2);
         //RenderTexture.ReleaseTemporary(tmp);
+    }
+
+    float Normpdf(float x, float sigma)
+    {
+        return 0.39894f * Mathf.Exp(-0.5f * x * x / (sigma * sigma)) / sigma;
+    }
+
+    void GenerateKernel(ref float[] kernel, ref float Z, int mSize, float sigma)
+    {
+        int kSize = (mSize - 1) / 2;
+        kernel = new float[mSize];
+
+        Z = 0.0f;
+        for (int j = 0; j <= kSize; ++j)
+        {
+            kernel[kSize + j] = kernel[kSize - j] = Normpdf(j, sigma);
+        }
+
+        for (int k = 0; k < mSize; ++k)
+        {
+            Z += kernel[k];
+        }
     }
 }
