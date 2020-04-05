@@ -17,6 +17,8 @@ public class ContrastEnhancement : MonoBehaviour
 
     RenderTexture RT;
     RenderTexture YUVL;
+    RenderTexture LaplacePyramid;
+
     Renderer rend;
 
     // Start is called before the first frame update
@@ -36,6 +38,10 @@ public class ContrastEnhancement : MonoBehaviour
         YUVL.enableRandomWrite = true;
         YUVL.Create();
 
+        LaplacePyramid = new RenderTexture(InputTexture.width, InputTexture.height, 0, RenderTextureFormat.ARGBFloat, RenderTextureReadWrite.Linear);
+        LaplacePyramid.enableRandomWrite = true;
+        LaplacePyramid.Create();
+
         rend = GetComponent<Renderer>();
         rend.enabled = true;
 
@@ -54,20 +60,21 @@ public class ContrastEnhancement : MonoBehaviour
             shader.SetFloat("Z9", Z9);
 
             int getLuminanceKernelHandle = shader.FindKernel("CSGetLuminance");
-            int blurKernelHandle = shader.FindKernel("CSBlur");
-            int blurTestKernelHandle = shader.FindKernel("CSBlurTest9");
+            int laPlacePyramidKernelHandle = shader.FindKernel("CSLaPlacePyramid");
+            int blurTestKernelHandle = shader.FindKernel("CSBlurTest5");
 
             shader.SetTexture(getLuminanceKernelHandle, "Result", RT);
             shader.SetTexture(getLuminanceKernelHandle, "YUVL", YUVL);
-            //shader.Dispatch(getLuminanceKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
+            shader.Dispatch(getLuminanceKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
 
-            shader.SetTexture(blurKernelHandle, "Result", RT);
-            shader.SetTexture(blurKernelHandle, "YUVL", YUVL);
-            //shader.Dispatch(blurKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
+            shader.SetTexture(laPlacePyramidKernelHandle, "Result", RT);
+            shader.SetTexture(laPlacePyramidKernelHandle, "YUVL", YUVL);
+            shader.SetTexture(laPlacePyramidKernelHandle, "LaplacePyramid", LaplacePyramid);
+            shader.Dispatch(laPlacePyramidKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
 
             shader.SetTexture(blurTestKernelHandle, "Result", RT);
             shader.SetTexture(blurTestKernelHandle, "YUVL", YUVL);
-            shader.Dispatch(blurTestKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
+            //shader.Dispatch(blurTestKernelHandle, InputTexture.width / 8, InputTexture.height / 8, 1);
         }
 
         else

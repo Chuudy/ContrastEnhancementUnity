@@ -1,8 +1,7 @@
 ﻿// Each #kernel tells which function to compile; you can have many kernels
 #pragma kernel CSMain
 #pragma kernel CSGetLuminance
-#pragma kernel CSBlur
-#pragma kernel CSBlurTest5k4c
+#pragma kernel CSLaPlacePyramid
 #pragma kernel CSBlurTest9
 #pragma kernel CSBlurTest5
 
@@ -13,6 +12,7 @@ float kernel9[9];
 float Z9;
 float Z5;
 RWTexture2D<float4> YUVL;
+RWTexture2D<float4> LaplacePyramid;
 RWTexture2D<float4> Result;
 
 float normpdf(float x, float sigma)
@@ -49,6 +49,70 @@ float4 Gauss2Dk9c4(int2 uv, float sigma)
 		}
 	}
 	return final_colour / (Z * Z);
+}
+
+float4 Gauss2Dk5c4(int2 uv, float sigma)
+{
+	//declare stuff
+	const int mSize = 5;
+	const int kSize = (mSize - 1) / 2;
+	float kernel[mSize];
+	float4 final_colour = float4(0, 0, 0, 0);
+
+	//create the 1-D kernel
+	float Z = 0.0;
+	for (int j = 0; j <= kSize; ++j)
+	{
+		kernel[kSize + j] = kernel[kSize - j] = normpdf(float(j), sigma);
+	}
+
+	//get the normalization factor (as the gaussian has been clamped)
+	for (int k = 0; k < mSize; ++k)
+	{
+		Z += kernel[k];
+	}
+
+	//read out the texels
+	for (int i = -kSize; i <= kSize; ++i)
+	{
+		for (int j = -kSize; j <= kSize; ++j)
+		{
+			final_colour += kernel[kSize + j] * kernel[kSize + i] * YUVL[uv + int2(i, j)];
+		}
+	}
+	return final_colour / (Z * Z);
+}
+
+float4 Gaussk9c4opt(int2 uv)
+{
+	int mSize = 9;
+	int kSize = (mSize - 1) / 2;
+	float4 final_colour = float4(0, 0, 0, 0);
+
+	for (int i = -kSize; i <= kSize; ++i)
+	{
+		for (int j = -kSize; j <= kSize; ++j)
+		{
+			final_colour += kernel9[j + kSize] * kernel9[kSize + i] * YUVL[uv + int2(i, j)];
+		}
+	}
+	return final_colour / (Z9*Z9);
+}
+
+float4 Gaussk5c4opt(int2 uv)
+{
+	int mSize = 5;
+	int kSize = (mSize - 1) / 2;
+	float4 final_colour = float4(0, 0, 0, 0);
+
+	for (int i = -kSize; i <= kSize; ++i)
+	{
+		for (int j = -kSize; j <= kSize; ++j)
+		{
+			final_colour += kernel5[j + kSize] * kernel5[kSize + i] * YUVL[uv + int2(i, j)];
+		}
+	}
+	return final_colour / (Z5*Z5);
 }
 
 float4 Gaussk9c4Horizontal(int2 uv, float sigma)
@@ -145,14 +209,16 @@ void CSGetLuminance(uint3 id : SV_DispatchThreadID)
 }
 
 [numthreads(8, 8, 1)]
-void CSBlur(uint3 id : SV_DispatchThreadID)
+void CSLaPlacePyramid(uint3 id : SV_DispatchThreadID)
 {
 
 	//Result[id.xy] = pow(10, YUVL[id.xy].w);
 
 	float g0 = YUVL[id.xy].w;
-	float g1 = Gauss2Dk9c4(id.xy, 2).w;
-	float g2 = Gauss2Dk9c4(id.xy, 4).w;
+	float g1 = Gaussk5c4opt(id.xy).w;
+	//float g1 = Gauss2Dk5c4(id.xy,2).w;
+	//float g2 = Gauss2Dk9c4(id.xy,4).w;
+	float g2 = Gaussk9c4opt(id.xy).w;
 
 	float P_in[3];
 
@@ -160,30 +226,16 @@ void CSBlur(uint3 id : SV_DispatchThreadID)
 	P_in[1] = g1 - g2;
 	P_in[2] = g2;
 
-	float y = P_in[0];
+	float4 laPlaceValues = float4(g0 - g1, g1 - g2, g2, 1);
+
+	float y = P_in[1];
+	//float y = g0 - g1;
 
 	Result[id.xy] = float4(y, y, y, 1); 
-	Result[id.xy] = Gauss2Dk9c4(id.xy, 4);
+	//Result[id.xy] = Gaussk5c4opt(id.xy);
 
 	//Result[id.xy] = (YUVL[id.xy] + YUVL[id.xy + int2(-1, 0)] + YUVL[id.xy + int2(-2, 0)] + YUVL[id.xy + int2(-3, 0)] + YUVL[id.xy + int2(-4, 0)]) / 5;
 	//Result[id.xy] = YUVL[id.xy];
-}
-
-[numthreads(8, 8, 1)]
-void CSBlurTest5k4c(uint3 id : SV_DispatchThreadID)
-{
-	int mSize = 5;
-	int kSize = (mSize - 1) / 2;
-	float4 final_colour = float4(0, 0, 0, 0);
-
-	for (int i = -kSize; i <= kSize; ++i)
-	{
-		for (int j = -kSize; j <= kSize; ++j)
-		{
-			final_colour += kernel5[j + kSize] * kernel5[kSize + i] * YUVL[id.xy + int2(i, j)];
-		}
-	}
-	Result[id.xy] = final_colour / (Z5*Z5);
 }
 
 [numthreads(8, 8, 1)]
@@ -201,6 +253,7 @@ void CSBlurTest9(uint3 id : SV_DispatchThreadID)
 		}
 	}
 	Result[id.xy] = final_colour / (Z9*Z9);
+	Result[id.xy] = YUVL[id.xy];
 }
 
 [numthreads(8, 8, 1)]
@@ -208,16 +261,17 @@ void CSBlurTest5(uint3 id : SV_DispatchThreadID)
 {
 	int mSize = 5;
 	int kSize = (mSize - 1) / 2;
-	float4 final_colour = float4(0, 0, 0, 0);
+	float4 final_colourk5 = float4(0, 0, 0, 0);
 
 	for (int i = -kSize; i <= kSize; ++i)
 	{
 		for (int j = -kSize; j <= kSize; ++j)
 		{
-			final_colour += kernel5[kSize + j] * kernel5[kSize + i] * YUVL[id.xy + int2(i, j)];
+			final_colourk5 += kernel5[kSize + j] * kernel5[kSize + i] * YUVL[id.xy + int2(i, j)];
 		}
 	}
-	float y = kernel5[2];
-	Result[id.xy] = final_colour / (Z5*Z5);
-	//Result[id.xy] = float4(y,y,y,y);// / (Z5*Z5);
+	float y = 1-Z5;
+	Result[id.xy] = final_colourk5 / (Z5*Z5);
+	//Result[id.xy] = YUVL[id.xy];
+	//Result[id.xy] = float4(y, y, y, y);
 }
