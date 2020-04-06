@@ -31,6 +31,10 @@ public class ContrastEnhancement : MonoBehaviour
     public float rhoMultiplier = 1;
     [Range(0f, 2)]
     public float enhancementMultiplier = 1;
+    [Range(0.1f, 20f)]
+    public float sensitivity = 1;
+    [Range(0.1f, 1f)]
+    public float pixelSizeFactorMultiplier = 0.5f;
 
     private SteamVR_Input_Sources rightHand = SteamVR_Input_Sources.RightHand;
 
@@ -105,25 +109,27 @@ public class ContrastEnhancement : MonoBehaviour
         contrastEnhancementMaterial.SetFloatArray("_kernel9", kernel9);
         contrastEnhancementMaterial.SetFloat("_Z5", Z5);
         contrastEnhancementMaterial.SetFloat("_Z9", Z9);
-
+        contrastEnhancementMaterial.SetFloat("_pixelSizeFactorMultiplier", pixelSizeFactorMultiplier);
+        
+        contrastEnhancementMaterial.SetFloat("_Sensitivity", sensitivity);        
         contrastEnhancementMaterial.SetFloat("_EnhancementMultiplier", enhancementMultiplier);        
 
         RenderTexture YUVL = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGBFloat);
-        RenderTexture L = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RFloat);
+        RenderTexture LL2 = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RGFloat);
 
         Graphics.Blit(source, YUVL, contrastEnhancementMaterial, (int)RenderPass.RGB2YUVL);
-        Graphics.Blit(YUVL, L, contrastEnhancementMaterial, (int)RenderPass.YUVL2L);
+        Graphics.Blit(YUVL, LL2, contrastEnhancementMaterial, (int)RenderPass.YUVL2L);
 
         contrastEnhancementMaterial.SetTexture("_YuvlTex", YUVL);
         contrastEnhancementMaterial.SetFloat("_LumTarget", luminanceTarget);
         contrastEnhancementMaterial.SetFloat("_LumSource", luminanceSource);
 
-        Graphics.Blit(L, destination, contrastEnhancementMaterial, (int)RenderPass.MAIN);
+        Graphics.Blit(LL2, destination, contrastEnhancementMaterial, (int)RenderPass.MAIN);
 
         //Graphics.Blit(YUVL, destination);
 
         RenderTexture.ReleaseTemporary(YUVL);
-        RenderTexture.ReleaseTemporary(L);
+        RenderTexture.ReleaseTemporary(LL2);
 
         //RenderTexture tmp = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RFloat);
         //Graphics.Blit(source, tmp, testMaterial, 3);
