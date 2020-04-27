@@ -12,7 +12,7 @@
 
 		_Sensitivity("Sensitivity", Range(0.1,20)) = 8.6
 
-		_pixelSizeFactorMultiplier("Pixel Size Factor", Range(0.1,1)) = 0.5
+		_pixelSizeFactorMultiplier("Pixel Size Factor", Range(0.1,10)) = 0.5
 	}
 
 	CGINCLUDE
@@ -370,6 +370,9 @@
 
 						float rho = _Rho;
 						float m = min(KulikowskiBoostG(l_source, G_est, l_target, rho), 2) * _EnhancementMultiplier;
+						
+						float modulation = 1 - (1 / (1 + pow(2.71828, -100 * (G_est - 0.0728))));
+						//m = m*modulation + (1 - modulation);
 
 						if (_EnhancementMultiplier < 1)
 							m = lerp(1, m, _EnhancementMultiplier);

@@ -34,7 +34,7 @@ public class ContrastEnhancement : MonoBehaviour
     public float enhancementMultiplier = 1;
     [Range(0.1f, 20f)]
     public float sensitivity = 8.6f;
-    [Range(0.1f, 1f)]
+    [Range(0.1f, 10f)]
     public float pixelSizeFactorMultiplier = 0.5f;
 
     private SteamVR_Input_Sources rightHand = SteamVR_Input_Sources.RightHand;
