@@ -10,7 +10,8 @@ public class ContrastEnhancement : MonoBehaviour
     {
         MAIN,
         RGB2YUVL,
-        YUVL2L
+        YUVL2L,
+        DEPTH
     }
 
     public Shader contrastEnhancementShader;
@@ -32,7 +33,7 @@ public class ContrastEnhancement : MonoBehaviour
     [Range(0f, 2)]
     public float enhancementMultiplier = 1;
     [Range(0.1f, 20f)]
-    public float sensitivity = 1;
+    public float sensitivity = 8.6f;
     [Range(0.1f, 1f)]
     public float pixelSizeFactorMultiplier = 0.5f;
 
@@ -45,6 +46,9 @@ public class ContrastEnhancement : MonoBehaviour
 
     private void Start()
     {
+        Camera cam = GetComponent<Camera>();
+        cam.depthTextureMode = cam.depthTextureMode | DepthTextureMode.Depth;
+
         ////// Generating kernels and divisors for gaussian blur
         GenerateKernel(ref kernel5, ref Z5, 5, 2);
         GenerateKernel(ref kernel9, ref Z9, 9, 4);
@@ -125,6 +129,8 @@ public class ContrastEnhancement : MonoBehaviour
         contrastEnhancementMaterial.SetFloat("_LumSource", luminanceSource);
 
         Graphics.Blit(LL2, destination, contrastEnhancementMaterial, (int)RenderPass.MAIN);
+
+        //Graphics.Blit(source, destination, contrastEnhancementMaterial, (int)RenderPass.DEPTH);
 
         //Graphics.Blit(YUVL, destination);
 

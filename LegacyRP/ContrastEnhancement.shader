@@ -10,7 +10,7 @@
 		_LumSource("Source Lum", Range(0.001, 300)) = 80
 		_LumTarget("Terget Lum", Range(0.001, 300)) = 8
 
-		_Sensitivity("Sensitivity", Range(0.1,1)) = 0.5
+		_Sensitivity("Sensitivity", Range(0.1,20)) = 8.6
 
 		_pixelSizeFactorMultiplier("Pixel Size Factor", Range(0.1,1)) = 0.5
 	}
@@ -20,6 +20,7 @@
 
 	sampler2D _MainTex;
 	sampler2D _CSFLut;
+	sampler2D _CameraDepthTexture;
 	float4 _MainTex_TexelSize;
 
 	float _kernel5[5];
@@ -27,7 +28,7 @@
 	float _Z9;
 	float _Z5;
 
-	float _Sensitivity = 8.7;
+	float _Sensitivity = 8.6;
 	float _pixelSizeFactorMultiplier = 0.5;
 
 	struct VertexData {
@@ -418,6 +419,23 @@
 				float2 FragmentProgram(Interpolators i) : SV_Target {
 					float val = tex2D(_MainTex, i.uv).w;
 					return float2(val,val*val);
+				}
+			ENDCG
+		}
+
+		Pass // DepthPass
+		{
+			CGPROGRAM
+				#pragma vertex VertexProgram
+				#pragma fragment FragmentProgram
+
+				float4 FragmentProgram(Interpolators i) : SV_Target {
+					//get depth from depth texture
+					float depth = tex2D(_CameraDepthTexture, i.uv).r;
+					//linear depth between camera and far clipping plane
+					//depth = Linear01Depth(depth);
+					
+					return depth;
 				}
 			ENDCG
 		}
