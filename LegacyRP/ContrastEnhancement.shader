@@ -13,6 +13,8 @@
 		_Sensitivity("Sensitivity", Range(0.1,20)) = 8.6
 
 		_pixelSizeFactorMultiplier("Pixel Size Factor", Range(0.1,10)) = 0.5
+
+		_modulationToggle("Modulation Toggle", Int) = 0
 	}
 
 	CGINCLUDE
@@ -30,6 +32,8 @@
 
 	float _Sensitivity = 8.6;
 	float _pixelSizeFactorMultiplier = 0.5;
+
+	int _modulationToggle;
 
 	struct VertexData {
 		float4 vertex : POSITION;
@@ -372,7 +376,10 @@
 						float m = min(KulikowskiBoostG(l_source, G_est, l_target, rho), 2) * _EnhancementMultiplier;
 						
 						float modulation = 1 - (1 / (1 + pow(2.71828, -100 * (G_est - 0.0728))));
-						//m = m*modulation + (1 - modulation);
+						
+						//_modulationToggle = 0;
+						if(_modulationToggle == 1)
+							m = m*modulation + (1 - modulation);
 
 						if (_EnhancementMultiplier < 1)
 							m = lerp(1, m, _EnhancementMultiplier);

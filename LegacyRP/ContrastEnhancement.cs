@@ -37,12 +37,16 @@ public class ContrastEnhancement : MonoBehaviour
     [Range(0.1f, 10f)]
     public float pixelSizeFactorMultiplier = 0.5f;
 
+    public bool modulationToggle = false;
+
+
     private SteamVR_Input_Sources rightHand = SteamVR_Input_Sources.RightHand;
 
     private float[] kernel5;
     private float[] kernel9;
     private float Z5;
     private float Z9;
+
 
     private void Start()
     {
@@ -80,6 +84,8 @@ public class ContrastEnhancement : MonoBehaviour
             Debug.LogError("LinearDriverNotAssigned");
         else
             driver = linearDriver.GetComponent<Valve.VR.InteractionSystem.LinearMapping>();
+
+        //driver.value = 0.5f;
     }
 
     private void Update()
@@ -116,7 +122,12 @@ public class ContrastEnhancement : MonoBehaviour
         contrastEnhancementMaterial.SetFloat("_pixelSizeFactorMultiplier", pixelSizeFactorMultiplier);
         
         contrastEnhancementMaterial.SetFloat("_Sensitivity", sensitivity);        
-        contrastEnhancementMaterial.SetFloat("_EnhancementMultiplier", enhancementMultiplier);        
+        contrastEnhancementMaterial.SetFloat("_EnhancementMultiplier", enhancementMultiplier);
+
+        if (modulationToggle)
+            contrastEnhancementMaterial.SetInt("_modulationToggle", 1);
+        else
+            contrastEnhancementMaterial.SetInt("_modulationToggle", 0);
 
         RenderTexture YUVL = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGBFloat);
         RenderTexture LL2 = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RGFloat);
