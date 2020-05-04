@@ -4,7 +4,7 @@ using UnityEngine;
 using Valve.VR;
 
 [ExecuteInEditMode, ImageEffectAllowedInSceneView]
-public class ContrastEnhancement : MonoBehaviour
+public class ContrastEnhancementBeta : MonoBehaviour
 {
     enum RenderPass
     {
