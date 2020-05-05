@@ -329,9 +329,11 @@
 	float betaBoostG(float Y_in, float Y_out, float G_est)
 	{
 		float C_in = log2michelson(G_est) * 2 * 100;
-		if (C_in <= 2)
+		if (C_in <= 1)
 			return 1;
 		float beta = beta_function(Y_in, C_in);
+		/*if (beta > 0.1)*/
+			//return 1;
 		float C_out = contrast_function(Y_out, beta);
 		float G_est_out = michelson2log(C_out / 200);
 		float m = G_est_out / max(0.0001, G_est);
@@ -427,13 +429,18 @@
 
 					float3 y_out = pow(10, l_out);
 
-					float3 yuvOut = tex2D(_YuvlTex, i.uv).rgb;
-					yuvOut.r = y_out;
+					float3 yuvIn = tex2D(_YuvlTex, i.uv).rgb;
 
-					//float res = _kernel9[4];
-					//return float4(res,res,res, 1);
-					return float4(yuv2rgb(yuvOut), 1);
+					//// old method
+					//float3 yuvOut = yuvIn;
+					//yuvOut.r = y_out;
+					//return float4(yuv2rgb(yuvOut), 1);
 
+					// new method
+					float3 rgbIn = yuv2rgb(yuvIn);
+					float maxFactor = 1 / max(max(rgbIn.r, rgbIn.g), rgbIn.b);
+					float multiplier = min((y_out / yuvIn.r), maxFactor);
+					return float4(rgbIn * multiplier, 1);
 				}
 			ENDCG
 		}

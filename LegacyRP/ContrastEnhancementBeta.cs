@@ -102,8 +102,8 @@ public class ContrastEnhancementBeta : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Escape))
             Application.Quit();
 
-        if(driver != null)
-            enhancementMultiplier = Mathf.Lerp(0, 2, driver.value);
+        //if(driver != null)
+        //    enhancementMultiplier = Mathf.Lerp(0, 2, driver.value);
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
