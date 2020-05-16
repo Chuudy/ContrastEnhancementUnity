@@ -18,7 +18,6 @@ public class ContrastEnhancementBeta : MonoBehaviour
     public Texture lutTexture;
     private Material contrastEnhancementMaterial;
 
-    public GameObject linearDriver;
     private Valve.VR.InteractionSystem.LinearMapping driver;
 
     public bool toggle = true;
@@ -80,24 +79,19 @@ public class ContrastEnhancementBeta : MonoBehaviour
         ////// assign lut texture to the material
         contrastEnhancementMaterial.SetTexture("_CSFLut", lutTexture);
 
-        if (linearDriver == null)
-            Debug.LogError("LinearDriverNotAssigned");
-        else
-            driver = linearDriver.GetComponent<Valve.VR.InteractionSystem.LinearMapping>();
-
         //driver.value = 0.5f;
     }
 
     private void Update()
     {
         
-        if (Input.GetKeyDown(KeyCode.T))
-            toggle = !toggle;
+        //if (Input.GetKeyDown(KeyCode.T))
+        //    toggle = !toggle;
 
-        if (SteamVR_Input.GetStateDown("GrabPinch", rightHand))
-        {
-            toggle = !toggle;
-        }
+        //if (SteamVR_Input.GetStateDown("GrabPinch", rightHand))
+        //{
+        //    toggle = !toggle;
+        //}
 
         if (Input.GetKeyDown(KeyCode.Escape))
             Application.Quit();

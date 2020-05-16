@@ -320,10 +320,36 @@
 	{
 		return  (0.00964028930664063*log10(Y) + 0.00110626220703125*C + (-0.0015)*(pow(log10(Y),2)) + 0.0271167755126953);
 	}
+
+	float beta_function_new(float Y, float C)
+	{
+		float pars1 = 0.00832040405273438;
+		float pars2 = -0.000186920166015625;
+		float pars3 = -0.0015;
+		float pars4 = 0.00003;
+		float pars5 = 0.0360622406005859;
+
+		return  (pars1*log10(Y) + pars2 * C + pars3 * (pow(log10(Y), 2)) + pars4 * pow(C, 2) + pars5);
+	}
 	
 	float contrast_function(float Y, float beta)
 	{
 		return ((0.00964028930664063*log10(Y) + (-0.0015)*(pow(log10(Y), 2)) + 0.0271167755126953 - beta) / (-0.00110626220703125));
+	}
+
+	float contrast_function_new(float Y, float beta)
+	{
+		float pars1 = 0.00832040405273438;
+		float pars2 = -0.000186920166015625;
+		float pars3 = -0.0015;
+		float pars4 = 0.00003;
+		float pars5 = 0.0360622406005859;
+
+		float A = pars4;
+		float B = pars2;
+		float K = pars1 * log10(Y) + pars3 * (pow(log10(Y), 2)) + pars5 - beta;
+
+		return (-B + sqrt(pow(B,2) - 4 * A*K)) / (2 * A);
 	}
 
 	float betaBoostG(float Y_in, float Y_out, float G_est)
@@ -331,10 +357,10 @@
 		float C_in = log2michelson(G_est) * 2 * 100;
 		if (C_in <= 1)
 			return 1;
-		float beta = beta_function(Y_in, C_in);
+		float beta = beta_function_new(Y_in, C_in);
 		/*if (beta > 0.1)*/
 			//return 1;
-		float C_out = contrast_function(Y_out, beta);
+		float C_out = contrast_function_new(Y_out, beta);
 		float G_est_out = michelson2log(C_out / 200);
 		float m = G_est_out / max(0.0001, G_est);
 		return m;
