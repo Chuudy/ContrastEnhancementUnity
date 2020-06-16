@@ -7,6 +7,10 @@ public class TrialGenerator : MonoBehaviour
     [Header("Prefabs and materials")]
     public GameObject player;
     public GameObject instancedObject;
+    public GameObject[] instancedObjects;
+    public GameObject feedBackObjectCorrect;
+    public GameObject feedBackObjectInCorrect;
+    private GameObject feedBackObjectInstance;
     public Material SkyBoxMaterial;
     private Material SkyBoxMaterialTmp;
     public Material StimuliMaterial;
@@ -54,6 +58,7 @@ public class TrialGenerator : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        ShowFeedback(true);
         CreateResultsFile();
 
         SkyBoxMaterialTmp = new Material(SkyBoxMaterial);
@@ -68,7 +73,12 @@ public class TrialGenerator : MonoBehaviour
     void Update()
     {
         if(!inputBlocked)
+        {
             KeyboardInput();
+            ChangeContrastParameters();
+            if (perceptualyEqualizeSize)
+                instances[1].transform.localScale = instances[0].transform.localScale * (secondObjectDistance / baseDistance);
+        }
 
         timer += Time.deltaTime;
 
@@ -85,10 +95,8 @@ public class TrialGenerator : MonoBehaviour
         //secondObjectDistance = 1 / (1f / baseDistance - dioptricDistnaceDifference);
         //instances[1].transform.position = initialPlayerPosition + Quaternion.AngleAxis(angleBetweenCenters/2, Vector3.up) * tmpDirecrtion * secondObjectDistance;
 
-        if (perceptualyEqualizeSize)
-            instances[1].transform.localScale = instances[0].transform.localScale * (secondObjectDistance / baseDistance);
+       
 
-        ChangeContrastParameters();
     }
 
     void CreateInstances()
@@ -102,7 +110,9 @@ public class TrialGenerator : MonoBehaviour
         position = initialPlayerPosition + initialPlayerDirection * baseDistance;
         rotation = Quaternion.identity;
 
-        instance = Instantiate(instancedObject, position, rotation);
+        int randomIndex = Random.Range(0, instancedObjects.Length);
+        instance = Instantiate(instancedObjects[randomIndex], position, rotation);
+        instance.transform.RotateAroundLocal(new Vector3(0, 0, 1), Random.RandomRange(0, 360));
         constraint = instance.GetComponent(typeof(LookAtConstraint)) as LookAtConstraint;
         constraint.lookAtObject = player.transform;
         instances.Add(instance);        
@@ -111,7 +121,8 @@ public class TrialGenerator : MonoBehaviour
         position = initialPlayerPosition + initialPlayerDirection * secondObjectDistance;
         rotation = Quaternion.identity;
 
-        instance = Instantiate(instancedObject, position, rotation);
+        randomIndex = Random.Range(0, instancedObjects.Length);
+        instance = Instantiate(instancedObjects[randomIndex], position, rotation);
         constraint = instance.GetComponent(typeof(LookAtConstraint)) as LookAtConstraint;
         constraint.lookAtObject = player.transform;
         instances.Add(instance);
@@ -209,6 +220,7 @@ public class TrialGenerator : MonoBehaviour
         
         DeleteExistingInstnaces();
         inputBlocked = true;
+        ShowFeedback(currentAnswer);
         Invoke("NewTrial", blankScreenTime);
     }
 
@@ -244,6 +256,23 @@ public class TrialGenerator : MonoBehaviour
         }
     }
 
+    void ShowFeedback(bool answer)
+    {
+        if (answer)
+            feedBackObjectCorrect.active = true;
+        else
+            feedBackObjectInCorrect.active = true;
+
+
+        Invoke("RemoveFeedback", 0.75f);
+    }
+
+    void RemoveFeedback()
+    {
+        feedBackObjectCorrect.active = false;
+        feedBackObjectInCorrect.active = false;
+    }
+
     void CreateResultsFile()
     {
         if (!System.IO.File.Exists(resultsFilename))
@@ -254,8 +283,7 @@ public class TrialGenerator : MonoBehaviour
             }
         }
     }
-
-
+    
     public void AddRecord(bool answer)
     {
         using (System.IO.StreamWriter file = new System.IO.StreamWriter(resultsFilename, true))

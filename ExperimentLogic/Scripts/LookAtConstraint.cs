@@ -15,6 +15,6 @@ public class LookAtConstraint : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        transform.LookAt(lookAtObject);
+        transform.LookAt(lookAtObject,lookAtObject.transform.up);
     }
 }
