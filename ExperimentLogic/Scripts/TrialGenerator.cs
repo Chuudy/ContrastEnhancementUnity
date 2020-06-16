@@ -30,12 +30,25 @@ public class TrialGenerator : MonoBehaviour
     public bool perceptualyEqualizeSize = false;
     public bool removeParalax = false;
 
+    [Header("Experiment settings")]
+    public string resultsFilename = "results.csv";
+    public string participantId = "PutIdHere";
+    public int blankScreenTime = 1;
+    public int reversalsToTerminate = 20;
+    public float distanceStep = 0.005f;
+
 
     private List<GameObject> instances;
     private Vector3 initialPlayerDirection;
     private Vector3 initialPlayerPosition;
 
+    private int closerIndex;
 
+    private int currentCorrectAnswersNumber=0;
+    private int currentReversalsNumber = 0;
+    private bool lastAnswer;
+
+    private bool inputBlocked = false;
 
     // Start is called before the first frame update
     void Start()
@@ -44,28 +57,30 @@ public class TrialGenerator : MonoBehaviour
         RenderSettings.skybox = SkyBoxMaterialTmp;
 
         instances = new List<GameObject>();
-        initialPlayerDirection = player.transform.forward;
-        initialPlayerPosition = player.transform.position;
-        CreateInstances();
+
+        NewTrial();
     }
 
     // Update is called once per frame
     void Update()
     {
-        secondObjectDistance = 1 / (1f / baseDistance - dioptricDistnaceDifference);
+        if(!inputBlocked)
+            KeyboardInput();
 
-        Vector3 tmpDirecrtion;
+        //secondObjectDistance = 1 / (1f / baseDistance - dioptricDistnaceDifference);
 
-        if (removeParalax)
-            tmpDirecrtion = player.transform.forward;
-        else
-            tmpDirecrtion = initialPlayerDirection;
+        //Vector3 tmpDirecrtion;
 
-        instances[0].transform.position = initialPlayerPosition + Quaternion.AngleAxis(-angleBetweenCenters/2, Vector3.up) * tmpDirecrtion * baseDistance;
-        secondObjectDistance = 1 / (1f / baseDistance - dioptricDistnaceDifference);
-        instances[1].transform.position = initialPlayerPosition + Quaternion.AngleAxis(angleBetweenCenters/2, Vector3.up) * tmpDirecrtion * secondObjectDistance;
+        //if (removeParalax)
+        //    tmpDirecrtion = player.transform.forward;
+        //else
+        //    tmpDirecrtion = initialPlayerDirection;
 
-        if(perceptualyEqualizeSize)
+        //instances[0].transform.position = initialPlayerPosition + Quaternion.AngleAxis(-angleBetweenCenters/2, Vector3.up) * tmpDirecrtion * baseDistance;
+        //secondObjectDistance = 1 / (1f / baseDistance - dioptricDistnaceDifference);
+        //instances[1].transform.position = initialPlayerPosition + Quaternion.AngleAxis(angleBetweenCenters/2, Vector3.up) * tmpDirecrtion * secondObjectDistance;
+
+        if (perceptualyEqualizeSize)
             instances[1].transform.localScale = instances[0].transform.localScale * (secondObjectDistance / baseDistance);
 
         ChangeContrastParameters();
@@ -85,8 +100,7 @@ public class TrialGenerator : MonoBehaviour
         instance = Instantiate(instancedObject, position, rotation);
         constraint = instance.GetComponent(typeof(LookAtConstraint)) as LookAtConstraint;
         constraint.lookAtObject = player.transform;
-        instances.Add(instance);
-        
+        instances.Add(instance);        
 
         secondObjectDistance = 1 / (1f / baseDistance + dioptricDistnaceDifference);
         position = initialPlayerPosition + initialPlayerDirection * secondObjectDistance;
@@ -105,5 +119,111 @@ public class TrialGenerator : MonoBehaviour
         SkyBoxMaterialTmp.SetFloat("_BaseValue", backgroundValue);
         StimuliMaterial.SetFloat("_BaseValue", backgroundValue);
         StimuliMaterial.SetFloat("_Contrast", contrast);        
+    }
+
+    void NewTrial()
+    {
+        CreateInstances();
+
+        closerIndex = (int)Mathf.Round(Random.value);
+        float closerAngleFactor = closerIndex * 2 - 1;
+
+        Debug.Log(closerAngleFactor);
+
+        initialPlayerDirection = player.transform.forward;
+        initialPlayerPosition = player.transform.position;
+
+        instances[0].transform.position = initialPlayerPosition + Quaternion.AngleAxis(closerAngleFactor * angleBetweenCenters / 2, player.transform.up) * initialPlayerDirection * baseDistance;
+        
+        secondObjectDistance = 1 / (1f / baseDistance - dioptricDistnaceDifference);
+
+        instances[1].transform.position = initialPlayerPosition + Quaternion.AngleAxis(-closerAngleFactor * angleBetweenCenters / 2, player.transform.up) * initialPlayerDirection * secondObjectDistance;
+
+        instances[0].transform.SetParent(player.transform, true);
+        instances[1].transform.SetParent(player.transform, true);
+
+        Debug.Log("New Trial created");
+
+        inputBlocked = false;
+
+        //DeactivateLookAtConstraints();
+    }
+
+    void DeleteExistingInstnaces()
+    {
+        foreach (GameObject instance in instances)
+        {
+            GameObject.Destroy(instance);
+        }
+
+        instances.Clear();
+    }
+
+    void DeactivateLookAtConstraints()
+    {
+        LookAtConstraint constraint;
+
+        foreach (GameObject instance in instances)
+        {
+            GameObject.Destroy(instance);
+            constraint = instance.GetComponent(typeof(LookAtConstraint)) as LookAtConstraint;
+            constraint.enabled = false;
+        }
+    }
+
+    void CheckAnswer(int answer)
+    {
+        bool currentAnswer = (answer == closerIndex);
+
+        if(currentAnswer)
+        {
+            Debug.Log("Correct");
+            currentCorrectAnswersNumber++;
+            if(currentCorrectAnswersNumber%2 == 0)
+                ChangeDistance(-1);
+        }
+        else
+        {
+            Debug.Log("Incorrect");
+            currentCorrectAnswersNumber = 0;
+            ChangeDistance(1);
+        }
+
+        if (currentAnswer != lastAnswer)
+            currentReversalsNumber++;
+
+        lastAnswer = currentAnswer;
+
+        if(currentReversalsNumber >= reversalsToTerminate)
+        {
+            Debug.Log("Quit");
+        }
+        
+        DeleteExistingInstnaces();
+        inputBlocked = true;
+        Invoke("NewTrial", blankScreenTime);
+    }
+
+    void KeyboardInput()
+    {
+        if(Input.GetKeyDown(KeyCode.Space))
+        {
+            NewTrial();
+        }
+
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            CheckAnswer(0);
+        }
+
+        if (Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            CheckAnswer(1);
+        }
+    }
+
+    void ChangeDistance(int direction)
+    {
+        dioptricDistnaceDifference += direction * distanceStep;
     }
 }
