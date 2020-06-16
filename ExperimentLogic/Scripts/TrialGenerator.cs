@@ -47,12 +47,15 @@ public class TrialGenerator : MonoBehaviour
     private int currentCorrectAnswersNumber=0;
     private int currentReversalsNumber = 0;
     private bool lastAnswer;
+    private float timer;
 
     private bool inputBlocked = false;
 
     // Start is called before the first frame update
     void Start()
     {
+        CreateResultsFile();
+
         SkyBoxMaterialTmp = new Material(SkyBoxMaterial);
         RenderSettings.skybox = SkyBoxMaterialTmp;
 
@@ -66,6 +69,8 @@ public class TrialGenerator : MonoBehaviour
     {
         if(!inputBlocked)
             KeyboardInput();
+
+        timer += Time.deltaTime;
 
         //secondObjectDistance = 1 / (1f / baseDistance - dioptricDistnaceDifference);
 
@@ -145,6 +150,7 @@ public class TrialGenerator : MonoBehaviour
         Debug.Log("New Trial created");
 
         inputBlocked = false;
+        timer = 0;
 
         //DeactivateLookAtConstraints();
     }
@@ -192,16 +198,32 @@ public class TrialGenerator : MonoBehaviour
         if (currentAnswer != lastAnswer)
             currentReversalsNumber++;
 
+        AddRecord(currentAnswer);
         lastAnswer = currentAnswer;
 
         if(currentReversalsNumber >= reversalsToTerminate)
         {
             Debug.Log("Quit");
+            QuitExperiment();
         }
         
         DeleteExistingInstnaces();
         inputBlocked = true;
         Invoke("NewTrial", blankScreenTime);
+    }
+
+    void ChangeDistance(int direction)
+    {
+        dioptricDistnaceDifference = Mathf.Max((float)System.Math.Round(System.Convert.ToDouble(dioptricDistnaceDifference + direction * distanceStep),3),0.001f);
+    }
+
+    void QuitExperiment()
+    {
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif
     }
 
     void KeyboardInput()
@@ -222,8 +244,24 @@ public class TrialGenerator : MonoBehaviour
         }
     }
 
-    void ChangeDistance(int direction)
+    void CreateResultsFile()
     {
-        dioptricDistnaceDifference += direction * distanceStep;
+        if (!System.IO.File.Exists(resultsFilename))
+        {
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter(resultsFilename, false))
+            {
+                file.WriteLine("id,condition,distance,answer,time");
+            }
+        }
     }
+
+
+    public void AddRecord(bool answer)
+    {
+        using (System.IO.StreamWriter file = new System.IO.StreamWriter(resultsFilename, true))
+        {
+            file.WriteLine(participantId + "," + "0" + "," + dioptricDistnaceDifference + "," + answer.ToString() + "," + timer.ToString());
+        }
+    }
+
 }
