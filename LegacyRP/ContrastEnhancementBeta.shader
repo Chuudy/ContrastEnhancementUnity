@@ -434,18 +434,13 @@
 
 						float rho = _Rho;
 						//float m = min(KulikowskiBoostG(l_source, G_est, l_target, rho), 2) * _EnhancementMultiplier;
-						float m = min(betaBoostG(l_source, l_target, G_est), 2) * _EnhancementMultiplier;
+						float m = min(betaBoostG(l_source, l_target, G_est), 2);
 						
 						float modulation = 1 - (1 / (1 + pow(2.71828, -100 * (G_est - 0.0728))));
 						
 						//_modulationToggle = 0;
 						if(_modulationToggle == 1)
 							m = m*modulation + (1 - modulation);
-
-						if (_EnhancementMultiplier < 1)
-							m = lerp(1, m, _EnhancementMultiplier);
-						else
-							m *= _EnhancementMultiplier;
 
 						float C_out = C_in * m;
 

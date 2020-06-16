@@ -56,11 +56,6 @@ public class ContrastEnhancementBeta : MonoBehaviour
         GenerateKernel(ref kernel5, ref Z5, 5, 2);
         GenerateKernel(ref kernel9, ref Z9, 9, 4);
 
-        foreach (var val in kernel5)
-        {
-            Debug.Log(val);
-        }
-
         ////// check if shader and texture exist
         if (contrastEnhancementShader == null)
             Debug.LogError("Post process shader not assigned in the script");
