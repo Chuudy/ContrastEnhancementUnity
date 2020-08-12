@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 212da5350bb58584dbcd1723ce1bf492
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences:
+  - contrastEnhancementShader: {fileID: 4800000, guid: f4d7b0fce6f7dbc48bcad0d6fa36db4b,
+      type: 3}
+  - lutTexture: {fileID: 2800000, guid: 416df0fb5ebade041991fb777467bb01, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
