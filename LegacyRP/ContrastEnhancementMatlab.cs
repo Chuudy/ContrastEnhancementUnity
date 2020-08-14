@@ -9,7 +9,7 @@ public class ContrastEnhancementMatlab : MonoBehaviour
     enum RenderPass
     {
         MAIN,
-        RGB2YUVL,
+        RGB2LL2,
         YUVL2L,
         DEPTH,
         GAUSS,
@@ -18,7 +18,7 @@ public class ContrastEnhancementMatlab : MonoBehaviour
     }
 
     public Shader contrastEnhancementShader;
-    public Texture lutTexture;
+    public Texture2D lutTexture;
     private Material contrastEnhancementMaterial;
 
     public bool toggle = true;
@@ -59,10 +59,10 @@ public class ContrastEnhancementMatlab : MonoBehaviour
         GenerateKernel(ref kernel5, ref Z5, 5, 1);
         GenerateKernel(ref kernel9, ref Z9, 9, 2);
 
-        foreach (var val in kernel5)
-        {
-            Debug.Log(val);
-        }
+        //foreach (var val in kernel5)
+        //{
+        //    Debug.Log(val);
+        //}
 
         ////// check if shader and texture exist
         if (contrastEnhancementShader == null)
@@ -87,7 +87,8 @@ public class ContrastEnhancementMatlab : MonoBehaviour
 
     private void Update()
     {
-        
+        Debug.Log(lutTexture.GetPixel(1023, 0));
+
         if (Input.GetKeyDown(KeyCode.T))
             toggle = !toggle;
 
@@ -131,11 +132,13 @@ public class ContrastEnhancementMatlab : MonoBehaviour
         RenderTexture G2 = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RGFloat);
 
         //Graphics.Blit(source, YUVL, contrastEnhancementMaterial, (int)RenderPass.RGB2YUVL);
-        Graphics.Blit(tex, YUVL, contrastEnhancementMaterial, (int)RenderPass.RGB2YUVL);
+        //Graphics.Blit(tex, YUVL, contrastEnhancementMaterial, (int)RenderPass.RGB2LL2);
         //Graphics.Blit(tex, YUVL, contrastEnhancementMaterial, (int)RenderPass.DEBUG);
         //Graphics.Blit(YUVL, destination, contrastEnhancementMaterial, (int)RenderPass.PRINTOUT);
         //return;
-        Graphics.Blit(YUVL, LL2, contrastEnhancementMaterial, (int)RenderPass.YUVL2L);
+        //Graphics.Blit(YUVL, LL2, contrastEnhancementMaterial, (int)RenderPass.YUVL2L);
+
+        Graphics.Blit(source, LL2, contrastEnhancementMaterial, (int)RenderPass.RGB2LL2);
 
         contrastEnhancementMaterial.SetFloat("_jump", 1.0f);
         Graphics.Blit(LL2, G1, contrastEnhancementMaterial, (int)RenderPass.GAUSS);
@@ -143,7 +146,12 @@ public class ContrastEnhancementMatlab : MonoBehaviour
         contrastEnhancementMaterial.SetFloat("_jump", 2.0f);
         Graphics.Blit(G1, G2, contrastEnhancementMaterial, (int)RenderPass.GAUSS);
 
+        //Graphics.Blit(LL2, destination, contrastEnhancementMaterial, (int)RenderPass.PRINTOUT);
+
+ 
+
         contrastEnhancementMaterial.SetTexture("_YuvlTex", YUVL);
+        contrastEnhancementMaterial.SetTexture("_RGBTexture", source);
         contrastEnhancementMaterial.SetFloat("_LumTarget", luminanceTarget);
         contrastEnhancementMaterial.SetFloat("_LumSource", luminanceSource);
         
@@ -151,15 +159,19 @@ public class ContrastEnhancementMatlab : MonoBehaviour
         contrastEnhancementMaterial.SetTexture("_G2", G2);
 
         Graphics.Blit(LL2, destination, contrastEnhancementMaterial, (int)RenderPass.MAIN);
+        //Graphics.Blit(lutTexture, destination);
 
-        //Graphics.Blit(source, destination, contrastEnhancementMaterial, (int)RenderPass.DEPTH);
-
-        //Graphics.Blit(G2, destination);
 
         RenderTexture.ReleaseTemporary(YUVL);
         RenderTexture.ReleaseTemporary(LL2);
         RenderTexture.ReleaseTemporary(G1);
         RenderTexture.ReleaseTemporary(G2);
+        return;
+
+        //Graphics.Blit(source, destination, contrastEnhancementMaterial, (int)RenderPass.DEPTH);
+
+        //Graphics.Blit(G2, destination);
+        
 
 
         //RenderTexture tmp = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RFloat);

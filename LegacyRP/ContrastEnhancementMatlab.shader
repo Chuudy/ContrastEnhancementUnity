@@ -15,14 +15,17 @@
 		_pixelSizeFactorMultiplier("Pixel Size Factor", Range(0.1,10)) = 0.5
 
 		_modulationToggle("Modulation Toggle", Int) = 0
+
+		_blackLevel("Black Level", Float) = 0.001
 	}
 
 		CGINCLUDE
 #include "UnityCG.cginc"
 
-			sampler2D _MainTex;
+		sampler2D _MainTex;
 		sampler2D _CSFLut;
 		sampler2D _CameraDepthTexture;
+		sampler2D _RGBTexture;
 		float4 _MainTex_TexelSize;
 
 		sampler2D _G1;
@@ -39,6 +42,8 @@
 		int _modulationToggle;
 
 		float _jump;
+
+		float _blackLevel;
 
 		struct VertexData {
 			float4 vertex : POSITION;
@@ -313,6 +318,26 @@
 			return final_colour / (Z * Z);
 		}
 
+		float logc(float x)
+		{
+			return pow(10, x);
+		}
+
+		float GetLuminance(float3 rgb)
+		{
+			return rgb.r * 0.212656 + rgb.g * 0.715158 + rgb.b * 0.072186;
+		}
+
+		float3 RemoveGamma(float3 rgb)
+		{
+			return pow(rgb, 2.2);
+		}
+
+		float3 RestoreGamma(float3 rgb)
+		{
+			return pow(rgb, 1 / 2.2);
+		}
+
 		float Remap01(float x, float minIn, float maxIn)
 		{
 			return (x - minIn) / (maxIn - minIn);
@@ -328,7 +353,9 @@
 		float SampleCSF(float rho, float logLum)
 		{
 			float2 uv = RhoAndLogLumToCSFCoordinates(rho, logLum);
-			return tex2D(_CSFLut, uv).r * _Sensitivity;
+			float sensitivity = RemoveGamma(tex2D(_CSFLut, uv).r);
+			//float sensitivity = tex2D(_CSFLut, uv).r;
+			return sensitivity * _Sensitivity;
 		}
 
 		float Michelson2Log(float C)
@@ -340,11 +367,10 @@
 		{
 			float S_s = max(SampleCSF(rho, l_in), 1.0202);
 			float S_d = max(SampleCSF(rho, l_out), 1.2222);
-			float t_s = 1 / SampleCSF(rho, l_in);
-			float t_d = 1 / SampleCSF(rho, l_out);
+			float t_s = 1 / S_s;
+			float t_d = 1 / S_d;
 			float G_ts = Michelson2Log(t_s);
 			float G_td = Michelson2Log(t_d);
-			//return l_in/8;
 			return max(G_in - G_ts + G_td, 0.00000001f) / G_in;
 		}
 
@@ -370,12 +396,13 @@
 					float4 FragmentProgram(Interpolators i) : SV_Target
 					{
 						float ret;
-
+						
 						float2 g0composite = tex2D(_MainTex, i.uv);
 						float2 g1composite = Gauss2Dk5c2_Opt(i.uv);
 						float2 g2composite = Gauss2Dk9c2_Opt(i.uv);
 						float2 g1compositeMatlab = tex2D(_G1, i.uv);
 						float2 g2compositeMatlab = tex2D(_G2, i.uv);
+
 
 						float g0 = g0composite.r;
 						//float g1 = Gauss2Dk5c1(i.uv, 2);
@@ -383,14 +410,12 @@
 						//float g2 = Gauss2Dk9c1(i.uv, 4);
 						float g2 = g2compositeMatlab.r;
 
+
 						float P_in[3];
 						P_in[0] = g0 - g1;
 						P_in[1] = g1 - g2;
 						P_in[2] = g2;
 
-						//ret = pow(pow(10, g0),1/2.2);
-						////ret = P_in[1];
-						//return float4(ret, ret, ret, ret);
 
 						float2 LL2Composites[2];
 						LL2Composites[0] = g1composite;
@@ -399,12 +424,11 @@
 						float l_in = g2;
 						float l_out = g2;
 
-						//int iter = 1;
-						//float y = sqrt(max(0, LL2Composites[iter].g - LL2Composites[iter].r * LL2Composites[iter].r));
-						////float y = sqrt(max(0, LL2Composites[iter].g - LL2Composites[iter].g * LL2Composites[iter].g));
-						//y = abs(P_in[iter]);
-						////float y = pow(10,sqrt(g1composite.g));
-						//return float4(y, y, y, y);
+/*
+						ret = SampleCSF(1, 3)*5.82/30;*/
+						//ret = RhoAndLogLumToCSFCoordinates(2, 2.5).g;
+						//return float4(ret, ret, ret, 1);
+
 
 						for (int iter = 1; iter >= 0; iter--)
 						{
@@ -415,29 +439,20 @@
 
 							//float G_est = abs(C_in);
 							float G_est = sqrt(max(0, LL2Composites[iter].g - LL2Composites[iter].r * LL2Composites[iter].r));
-							
-							/*ret = G_est;
-							if (iter == 0)
-								return float4(ret, ret, ret, ret);*/
 
 							float rho = pow(2, -(iter + 1)) * 16;
 							float m = min(KulikowskiBoostG(l_source, G_est, l_target, rho), 4) * _EnhancementMultiplier;
 
-							/*ret = KulikowskiBoostG(l_source, G_est, l_target, rho);
-							ret = m/4;
-							if(iter == 0)
-								return float4(ret, ret, ret, ret);*/
-
 							//float modulation = 1 - (1 / (1 + pow(2.71828, -100 * (G_est - 0.0728))));
 
 							////_modulationToggle = 0;
-							//if (_modulationToggle == 1)
-							//	m = m * modulation + (1 - modulation);
+							/*if (_modulationToggle == 1)
+								m = m * modulation + (1 - modulation);*/
 
-							//if (_EnhancementMultiplier < 1)
-							//	m = lerp(1, m, _EnhancementMultiplier);
-							//else
-							//	m *= _EnhancementMultiplier;
+							/*if (_EnhancementMultiplier < 1)
+								m = lerp(1, m, _EnhancementMultiplier);
+							else
+								m *= _EnhancementMultiplier;*/
 
 							float C_out = C_in * m;
 
@@ -445,39 +460,59 @@
 							l_in = l_in + P_in[iter];
 						}
 
-						float3 y_out = pow(10, l_out);
+						float y_out = clamp(logc(l_out),0,1);
 
-						float3 yuvOut = tex2D(_YuvlTex, i.uv).rgb;
-						float y_in = yuvOut.r;
-						float enhancement = yuvOut / max(y_in, 0.0001f);
-						yuvOut.r = y_out;
+						//return float4(y_out, y_out, y_out, 1);
 
-						//float res = _kernel9[4];
-						//return float4(res,res,res, 1);
-						float3 rgbOut = pow(yuv2rgb(yuvOut), 1 / 2.2);
+						float3 rgb_in = RemoveGamma(tex2D(_RGBTexture, i.uv).rgb);
+						float y_in = GetLuminance(rgb_in);
 
-						return float4(rgbOut, 1);
+						float multiplier = (y_out / max(y_in, 0.0001f));
+
+						float3 rgb_out = rgb_in * multiplier;
+						rgb_out = max(rgb_out - _blackLevel, 0) * (1 / (1 - _blackLevel));
+						rgb_out = RestoreGamma(rgb_out);
+
+						return float4(rgb_out, 1);
 
 					}
 				ENDCG
 			}
 
-			Pass // RGB to YUVL 1
+			Pass // RGB to LL2
 			{
 				CGPROGRAM
 				#pragma vertex VertexProgram
 				#pragma fragment FragmentProgram
 
-				float4 FragmentProgram(Interpolators i) : SV_Target {
+				float2 FragmentProgram(Interpolators i) : SV_Target {
 
-					float3 rgbClamped = clamp(tex2D(_MainTex,i.uv), 0.001f, 1);
-					rgbClamped = pow(rgbClamped, 2.2);
-					rgbClamped = clamp(rgbClamped, 0.001f, 1);
-					float3 yuv = rgb2yuv(rgbClamped);
-					yuv.r = rgbClamped.r * 0.212656 + rgbClamped.g * 0.715158 + rgbClamped.b * 0.072186;
-					float ret = pow(yuv.r, (1 / 2.2));
-					//return float4(ret, ret, ret, 1);
-					return float4(yuv.rgb, log10(yuv.r));
+					//Acquiring color from input
+					float3 rgb = tex2D(_MainTex,i.uv).rgb;
+					rgb = RemoveGamma(rgb);
+
+					//Acquiring luminance
+					float y = GetLuminance(rgb);
+
+					//Adding black level
+					y = y * (1 - _blackLevel) + _blackLevel;
+
+					//Converting luminance to log-luminance
+					float l = log10(y);
+					float l2 = l * l;
+
+					//Returning values
+					float2 output = float2(l, l2);
+					return output;
+					
+					////Debug
+					//y = logc(l);
+					//y = max(y - _blackLevel, 0) * (1 / (1 - _blackLevel));
+
+					//float3 ret = RestoreGamma(float3(y, y, y));
+					////float3 ret = float3(y, y, y);
+
+					//return ret;
 				}
 			ENDCG
 			}
@@ -509,7 +544,7 @@
 
 					return depth;
 				}
-			ENDCG
+				ENDCG
 		}
 
 		Pass // GaussBlur to L 2
@@ -532,15 +567,17 @@
 				#pragma fragment FragmentProgram
 
 				float4 FragmentProgram(Interpolators i) : SV_Target {
-					float ret;
-					float3 rgb_gamma = tex2D(_MainTex, i.uv).rgb;
-					float3 rgb = pow(rgb_gamma, 2.2);
+					float3 rgbClamped = clamp(tex2D(_MainTex,i.uv).rgb, 0.001f, 1);
+					rgbClamped = RemoveGamma(rgbClamped);
+					rgbClamped = clamp(rgbClamped, 0.001f, 1);
 
-					ret = rgb.r * 0.212656 + rgb.g * 0.715158 + rgb.b * 0.072186;
-					ret = pow(ret, 1 / 2.2);
-					//ret = rgb.r * pow(0.212656,1/2.2);
-					float4 output = float4(ret, ret, ret, 1);
-					return output;
+					float y = GetLuminance(rgbClamped);
+					float l = log10(y);
+					float l2 = l * l;
+
+					float3 ret = RestoreGamma(float3(y, y, y));
+
+					return float4(ret,1);
 				}
 			ENDCG
 		}
@@ -553,8 +590,9 @@
 
 				float4 FragmentProgram(Interpolators i) : SV_Target {
 					float ret;
-					float3 rgb_gamma = tex2D(_MainTex, i.uv).rgb;
-					ret = rgb_gamma.r;
+					float2 input = tex2D(_MainTex, i.uv).rg;
+					ret = input.g;
+					//ret = logc(input.r);
 					float4 output = float4(ret, ret, ret, 1);
 					return output;
 				}
