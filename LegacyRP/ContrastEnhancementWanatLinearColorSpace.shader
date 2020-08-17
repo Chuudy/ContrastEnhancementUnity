@@ -1,4 +1,4 @@
-﻿Shader "Custom/ContrastEnhancementWanatGamma"
+﻿Shader "Custom/ContrastEnhancementWanatLinear"
 {
 	Properties{
 		_MainTex("Texture", 2D) = "white" {}
@@ -347,7 +347,7 @@
 		float SampleCSF(float rho, float logLum)
 		{
 			float2 uv = RhoAndLogLumToCSFCoordinates(rho, logLum);
-			float sensitivity = RemoveGamma(tex2D(_CSFLut, uv).r);
+			float sensitivity = tex2D(_CSFLut, uv).r;
 			//float sensitivity = tex2D(_CSFLut, uv).r;
 			return sensitivity * _Sensitivity;
 		}
@@ -410,7 +410,6 @@
 						P_in[1] = g1 - g2;
 						P_in[2] = g2;
 
-
 						float2 LL2Composites[2];
 						LL2Composites[0] = g1composite;
 						LL2Composites[1] = g2composite;
@@ -447,14 +446,16 @@
 
 						//return float4(y_out, y_out, y_out, 1);
 
-						float3 rgb_in = RemoveGamma(tex2D(_RGBTexture, i.uv).rgb);
+						//return float4(y_out, y_out, y_out, 1);
+
+						float3 rgb_in = tex2D(_RGBTexture, i.uv).rgb;
 						float y_in = GetLuminance(rgb_in);
 
 						float multiplier = (y_out / max(y_in, 0.0001f));
 
 						float3 rgb_out = rgb_in * multiplier;
 						rgb_out = max(rgb_out - _blackLevel, 0) * (1 / (1 - _blackLevel));
-						rgb_out = RestoreGamma(rgb_out);
+						rgb_out = rgb_out;
 
 						return float4(rgb_out, 1);
 
@@ -472,7 +473,7 @@
 
 					//Acquiring color from input
 					float3 rgb = tex2D(_MainTex,i.uv).rgb;
-					rgb = RemoveGamma(rgb);
+					//rgb = RemoveGamma(rgb);
 
 					//Acquiring luminance
 					float y = GetLuminance(rgb);
@@ -561,7 +562,7 @@
 				float4 FragmentProgram(Interpolators i) : SV_Target {
 					float ret;
 					float2 input = tex2D(_MainTex, i.uv).rg;
-					ret = input.g;
+					ret = logc(input.r);
 					//ret = logc(input.r);
 					float4 output = float4(ret, ret, ret, 1);
 					return output;

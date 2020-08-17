@@ -10,7 +10,6 @@ public class ContrastEnhancementWanat : MonoBehaviour
     {
         MAIN,
         RGB2LL2,
-        YUVL2L,
         DEPTH,
         GAUSS,
         DEBUG,
@@ -107,24 +106,18 @@ public class ContrastEnhancementWanat : MonoBehaviour
         contrastEnhancementMaterial.SetFloat("_Z5", Z5);
         contrastEnhancementMaterial.SetFloat("_Z9", Z9);
         contrastEnhancementMaterial.SetFloat("_pixelSizeFactorMultiplier", pixelSizeFactorMultiplier);
-        
+
         contrastEnhancementMaterial.SetFloat("_Sensitivity", sensitivity);
 
-        RenderTexture YUVL = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGBFloat);
         RenderTexture LL2 = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RGFloat);
-        RenderTexture LU2VV2 = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.ARGBFloat);
 
         RenderTexture G1 = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RGFloat);
         RenderTexture G2 = RenderTexture.GetTemporary(source.width, source.height, 0, RenderTextureFormat.RGFloat);
-
-        //Graphics.Blit(source, YUVL, contrastEnhancementMaterial, (int)RenderPass.RGB2YUVL);
-        //Graphics.Blit(tex, YUVL, contrastEnhancementMaterial, (int)RenderPass.RGB2LL2);
-        //Graphics.Blit(tex, YUVL, contrastEnhancementMaterial, (int)RenderPass.DEBUG);
-        //Graphics.Blit(YUVL, destination, contrastEnhancementMaterial, (int)RenderPass.PRINTOUT);
-        //return;
-        //Graphics.Blit(YUVL, LL2, contrastEnhancementMaterial, (int)RenderPass.YUVL2L);
+        
 
         Graphics.Blit(source, LL2, contrastEnhancementMaterial, (int)RenderPass.RGB2LL2);
+
+
 
         contrastEnhancementMaterial.SetFloat("_jump", 1.0f);
         Graphics.Blit(LL2, G1, contrastEnhancementMaterial, (int)RenderPass.GAUSS);
@@ -132,11 +125,9 @@ public class ContrastEnhancementWanat : MonoBehaviour
         contrastEnhancementMaterial.SetFloat("_jump", 2.0f);
         Graphics.Blit(G1, G2, contrastEnhancementMaterial, (int)RenderPass.GAUSS);
 
-        //Graphics.Blit(LL2, destination, contrastEnhancementMaterial, (int)RenderPass.PRINTOUT);
 
  
-
-        contrastEnhancementMaterial.SetTexture("_YuvlTex", YUVL);
+        
         contrastEnhancementMaterial.SetTexture("_RGBTexture", source);
         contrastEnhancementMaterial.SetFloat("_LumTarget", luminanceTarget);
         contrastEnhancementMaterial.SetFloat("_LumSource", luminanceSource);
@@ -147,8 +138,8 @@ public class ContrastEnhancementWanat : MonoBehaviour
         Graphics.Blit(LL2, destination, contrastEnhancementMaterial, (int)RenderPass.MAIN);
         //Graphics.Blit(lutTexture, destination);
 
+        //Graphics.Blit(G2, destination, contrastEnhancementMaterial, (int)RenderPass.PRINTOUT);
 
-        RenderTexture.ReleaseTemporary(YUVL);
         RenderTexture.ReleaseTemporary(LL2);
         RenderTexture.ReleaseTemporary(G1);
         RenderTexture.ReleaseTemporary(G2);
