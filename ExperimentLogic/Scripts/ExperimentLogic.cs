@@ -13,6 +13,10 @@ public class ExperimentLogic : MonoBehaviour
     private Material SkyBoxMaterialTmp;
     public Material StimuliMaterial;
 
+    [Header("Enhancements")]
+    public int enhancement1;
+    public int enhancement2;
+
     [Header("Stimuli contrast options")]
     [Range(0f, 1f)]
     public float backgroundValue = 0.5f;
@@ -25,9 +29,14 @@ public class ExperimentLogic : MonoBehaviour
     [Range(0.001f, 0.2f)]
     public float startingDioptricDistance = 0.1f;
 
+    [Header("Experiment sewttings")]
     public int numberOfTrialsPerCondition = 20;
-    private int numberOfConditions = 3;
-    
+    public string resultsFilename = "results.csv";
+    public int blankScreenTime = 1;
+    public int reversalsToTerminate = 20;
+    public float dioptricDistanceStep = 0.005f;
+
+
     private List<Condition> conditions;
     private List<Condition> trials;
 
@@ -54,7 +63,17 @@ public class ExperimentLogic : MonoBehaviour
     void KeyboardInput()
     {
         if (Input.GetKeyDown(KeyCode.Space))
-            trialGen.NextTrial(baseDistance, angleBetweenCenters);            
+            trialGen.NextTrial(baseDistance, angleBetweenCenters);
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            trialGen.CheckAnswer(0);
+            trialGen.NextTrial(baseDistance, angleBetweenCenters);
+        }
+        if (Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            trialGen.CheckAnswer(1);
+            trialGen.NextTrial(baseDistance, angleBetweenCenters);
+        }
     }
 
     void InitializeConditionsandTrials()
@@ -69,16 +88,16 @@ public class ExperimentLogic : MonoBehaviour
         conditions = new List<Condition>();
 
         //cond 0
-        Condition noEnhancement = new Condition(startingDioptricDistance, "no enhancement");
+        Condition noEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, "no enhancement");
         conditions.Add(noEnhancement);
 
-        //cond 1
-        Condition wanatEnhancement = new Condition(startingDioptricDistance, "wanat", true, false);
-        conditions.Add(wanatEnhancement);
+        ////cond 1
+        //Condition wanatEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, "wanat", true, false);
+        //conditions.Add(wanatEnhancement);
 
-        //cond 2
-        Condition wolskiEnhancement = new Condition(startingDioptricDistance, "wolski", false, true);
-        conditions.Add(wolskiEnhancement);
+        ////cond 2
+        //Condition wolskiEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, "wolski", false, true);
+        //conditions.Add(wolskiEnhancement);
     }
 
     void PopulateTrials()
@@ -121,17 +140,23 @@ class Condition
 {
     public string conditionName;
     string resultsFilename;
+    float distanceStep;
     float currentDioptricDistance;
     readonly bool wanatEnhancement = false;
     readonly bool wolskiEnhancement = false;
+
+    private int currentCorrectAnswersNumber = 0;
+    private int currentReversalsNumber = 0;
+    private bool lastAnswer;
 
     public bool WanatEnhancement { get => wanatEnhancement; }
     public bool WolskiEnhancement { get => wolskiEnhancement; }
     public float CurrentDioptricDistance { get => currentDioptricDistance; }
 
-    public Condition(float startDioptricDistance, string conditionName, bool wanatEnhancement = false, bool wolskiEnhancement = false)
+    public Condition(float startDioptricDistance, float distanceStep, string conditionName, bool wanatEnhancement = false, bool wolskiEnhancement = false)
     {
         this.currentDioptricDistance = startDioptricDistance;
+        this.distanceStep = distanceStep;
         this.conditionName = conditionName;
         this.wanatEnhancement = wanatEnhancement;
         this.wolskiEnhancement = wolskiEnhancement;
@@ -144,8 +169,36 @@ class Condition
         this.currentDioptricDistance = _condition.currentDioptricDistance;
     }
 
-    public void ChangeDistance(bool correct)
+    public void CheckAnswer(bool isAnswerCorrect)
     {
+        UpdateReversalParameters(isAnswerCorrect);
+    }
+
+    void UpdateReversalParameters(bool isAnswerCorrect)
+    {
+        if (isAnswerCorrect)
+        {
+            Debug.Log("Correct");
+            currentCorrectAnswersNumber++;
+            if (currentCorrectAnswersNumber % 2 == 0)
+                ChangeDistance(-1);
+        }
+        else
+        {
+            Debug.Log("Incorrect");
+            currentCorrectAnswersNumber = 0;
+            ChangeDistance(1);
+        }
+
+        if (isAnswerCorrect != lastAnswer)
+            currentReversalsNumber++;
+
+        Debug.Log(CurrentDioptricDistance);
+    }
+
+    public void ChangeDistance(int direction)
+    {
+        currentDioptricDistance = Math.Max(currentDioptricDistance + direction * distanceStep, 0.0000f);
         return;
     }
 
@@ -161,7 +214,7 @@ class TrialGen : MonoBehaviour
     private GameObject instancedObject;
 
     private List<Condition> trials;
-    private int currentTrialIndex = 0;
+    private int currentTrialIndex = -1;
 
     private List<GameObject> instances;
 
@@ -180,6 +233,8 @@ class TrialGen : MonoBehaviour
 
     public int NextTrial(float baseDistance, float angle)
     {
+        currentTrialIndex++;
+
         DeleteExistingStimuliIfExists();
 
         //Check if there is any trial left
@@ -213,7 +268,7 @@ class TrialGen : MonoBehaviour
 
             if (i != closerIndex)
             {
-                distance = 1 / (1f / baseDistance + currentTrial.CurrentDioptricDistance);
+                distance = 1 / (1f / baseDistance - currentTrial.CurrentDioptricDistance);
                 furtherObjectDistance = distance;
             }
 
@@ -231,8 +286,6 @@ class TrialGen : MonoBehaviour
             instance.transform.Rotate(new Vector3(1, 0, 0), 180);
             instances.Add(instance);
         }
-
-        currentTrialIndex++;
         return 0;
     }
 
@@ -246,6 +299,11 @@ class TrialGen : MonoBehaviour
             GameObject.Destroy(instance);
         }
         instances.Clear();
+    }
+
+    public void CheckAnswer(int answer)
+    {
+        trials[currentTrialIndex].CheckAnswer(answer == closerIndex);
     }
 }
 
