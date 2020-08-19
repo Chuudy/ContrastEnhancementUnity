@@ -41,8 +41,8 @@ public class ExperimentLogic : MonoBehaviour
     private List<Condition> trials;
 
     private TrialGen trialGen;
-    
-    private int currentTrial = 0;
+
+    bool inputBlocked;
 
     // Start is called before the first frame update
     void Start()
@@ -62,20 +62,23 @@ public class ExperimentLogic : MonoBehaviour
 
     void KeyboardInput()
     {
+        if (inputBlocked)
+            return;
+
         if (Input.GetKeyDown(KeyCode.Space))
         {
             trialGen.StartExperiment();
-            trialGen.NextTrial(baseDistance, angleBetweenCenters);
+            NextTrial();
         }
         if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
             trialGen.CheckAnswer(0);
-            trialGen.NextTrial(baseDistance, angleBetweenCenters);
+            NextTrial();
         }
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
             trialGen.CheckAnswer(1);
-            trialGen.NextTrial(baseDistance, angleBetweenCenters);
+            NextTrial();
         }
     }
 
@@ -136,8 +139,31 @@ public class ExperimentLogic : MonoBehaviour
     {
         Debug.Log(trials.Count);
         trialGen = new TrialGen(playerCamera, instancedObject, conditions, reversalsToTerminate);
+        trialGen.blankScreenTime = blankScreenTime;
         trialGen.wanatEnhancement = wanatEnhancement;
         trialGen.wolskiEnhancement = wolskiEnhancement;
+    }
+
+    void NextTrial()
+    {
+        LockInput();
+        Invoke("RunTrial", blankScreenTime);
+        Invoke("UnlockInput", blankScreenTime);
+    }
+
+    void RunTrial()
+    {
+        trialGen.NextTrial(baseDistance, angleBetweenCenters);
+    }
+
+    void LockInput()
+    {
+        inputBlocked = true;
+    }
+
+    void UnlockInput()
+    {
+        inputBlocked = false;
     }
 }
 
@@ -158,10 +184,13 @@ class TrialGen : MonoBehaviour
     public ContrastEnhancementWanat wanatEnhancement;
     public ContrastEnhancementWolski wolskiEnhancement;
 
+    public float blankScreenTime;
+
     private List<GameObject> instances;
 
     private int closerIndex;
     private float baseDistance;
+    private float angle;
     private float furtherObjectDistance;
 
     private Condition currentCondition;
@@ -184,12 +213,13 @@ class TrialGen : MonoBehaviour
         hasExperimentStarted = true;
     }
 
-    public int NextTrial(float baseDistance, float angle)
+    public void NextTrial(float baseDistance, float angle)
     {
         if (!hasExperimentStarted || hasExperimentFinished)
-            return -1;
+            return;
 
-        DeleteExistingStimuliIfExists();
+        this.baseDistance = baseDistance;
+        this.angle = angle;
 
         // Select random condition
         int conditionIndex = UnityEngine.Random.Range(0, conditions.Count);
@@ -197,8 +227,6 @@ class TrialGen : MonoBehaviour
         Debug.Log("Current condition: " + currentCondition.conditionName);
 
         SetEnhancements();
-
-        this.baseDistance = baseDistance;
 
         closerIndex = (int)Mathf.Round(UnityEngine.Random.value);
         float closerAngleFactor = closerIndex * 2 - 1;
@@ -236,7 +264,6 @@ class TrialGen : MonoBehaviour
             instance.transform.Rotate(new Vector3(1, 0, 0), 180);
             instances.Add(instance);
         }
-        return 0;
     }
 
     void SetEnhancements()
@@ -252,10 +279,12 @@ class TrialGen : MonoBehaviour
             return;
 
         currentCondition.CheckAnswer(answer == closerIndex);
+
+        DeleteStimuliIfExists();
         DeleteCurrentConditionIfFinished();
     }
 
-    void DeleteExistingStimuliIfExists()
+    void DeleteStimuliIfExists()
     {
         if (instances.Count == 0)
             return;
@@ -283,7 +312,7 @@ class TrialGen : MonoBehaviour
         if (conditions.Count == 0)
         {
             hasExperimentFinished = true;
-            DeleteExistingStimuliIfExists();
+            DeleteStimuliIfExists();
         }
     }
 }
