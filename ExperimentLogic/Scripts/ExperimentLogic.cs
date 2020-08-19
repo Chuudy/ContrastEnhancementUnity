@@ -63,7 +63,10 @@ public class ExperimentLogic : MonoBehaviour
     void KeyboardInput()
     {
         if (Input.GetKeyDown(KeyCode.Space))
+        {
+            trialGen.StartExperiment();
             trialGen.NextTrial(baseDistance, angleBetweenCenters);
+        }
         if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
             trialGen.CheckAnswer(0);
@@ -92,12 +95,12 @@ public class ExperimentLogic : MonoBehaviour
         conditions.Add(noEnhancement);
 
         ////cond 1
-        //Condition wanatEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, "wanat", true, false);
-        //conditions.Add(wanatEnhancement);
+        Condition wanatEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, "wanat", true, false);
+        conditions.Add(wanatEnhancement);
 
         ////cond 2
-        //Condition wolskiEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, "wolski", false, true);
-        //conditions.Add(wolskiEnhancement);
+        Condition wolskiEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, "wolski", false, true);
+        conditions.Add(wolskiEnhancement);
     }
 
     void PopulateTrials()
@@ -132,9 +135,152 @@ public class ExperimentLogic : MonoBehaviour
     void CreateTrialGenerator()
     {
         Debug.Log(trials.Count);
-        trialGen = new TrialGen(playerCamera, instancedObject, trials);
+        trialGen = new TrialGen(playerCamera, instancedObject, conditions, reversalsToTerminate);
     }
 }
+
+
+
+
+
+
+
+class TrialGen : MonoBehaviour
+{
+    private Transform playerCamera;
+    private GameObject instancedObject;
+
+    private List<Condition> conditions;
+    private int reversalsToTerminate;
+
+    private List<GameObject> instances;
+
+    private int closerIndex;
+    private float baseDistance;
+    private float furtherObjectDistance;
+
+    private Condition currentCondition;
+
+    private bool hasExperimentStarted = false;
+    private bool hasExperimentFinished = false;
+
+    public TrialGen(Transform playerCamera, GameObject instancedObject, List<Condition> conditions, int reversalsToTerminate)
+    {
+        instances = new List<GameObject>();
+
+        this.playerCamera = playerCamera;
+        this.instancedObject = instancedObject;
+        this.conditions = conditions;
+        this.reversalsToTerminate = reversalsToTerminate;
+    }
+
+    public void StartExperiment()
+    {
+        hasExperimentStarted = true;
+    }
+
+    public int NextTrial(float baseDistance, float angle)
+    {
+        if (!hasExperimentStarted || hasExperimentFinished)
+            return -1;
+
+        DeleteExistingStimuliIfExists();
+
+        // Select random condition
+        int conditionIndex = UnityEngine.Random.Range(0, conditions.Count);
+        currentCondition = conditions[conditionIndex];
+        Debug.Log("Current condition: " + currentCondition.conditionName);
+
+        this.baseDistance = baseDistance;
+
+        closerIndex = (int)Mathf.Round(UnityEngine.Random.value);
+        float closerAngleFactor = closerIndex * 2 - 1;
+
+        Vector3 forwardDirection = new Vector3(0, 0, 1);
+        Vector3 origin = new Vector3(0, 0, 0);
+        Vector3 position = new Vector3(0, 0, 0);
+        Quaternion rotation = Quaternion.identity;
+        GameObject instance;
+
+        for (int i = 0; i < 2; i++)
+        {
+            float angleFactor = i * 2 - 1;
+            Vector3 direction = Quaternion.Euler(0, angleFactor * angle / 2, 0) * forwardDirection;
+
+            float distance = baseDistance;
+
+            if (i != closerIndex)
+            {
+                distance = 1 / (1f / baseDistance - currentCondition.CurrentDioptricDistance);
+                furtherObjectDistance = distance;
+            }
+
+            position = origin + direction * distance;
+            instance = Instantiate(instancedObject, position, rotation);
+            instance.transform.LookAt(position);
+
+            if (i != closerIndex)
+            {
+                instance.transform.localScale = instance.transform.localScale * (furtherObjectDistance / baseDistance);
+            }
+
+            instance.transform.SetParent(playerCamera, false);
+            instance.transform.Rotate(new Vector3(0, 0, 1), UnityEngine.Random.Range(0, 360));
+            instance.transform.Rotate(new Vector3(1, 0, 0), 180);
+            instances.Add(instance);
+        }
+        return 0;
+    }
+
+    public void CheckAnswer(int answer)
+    {
+        if (!hasExperimentStarted || hasExperimentFinished)
+            return;
+
+        currentCondition.CheckAnswer(answer == closerIndex);
+        DeleteCurrentConditionIfFinished();
+    }
+
+    void DeleteExistingStimuliIfExists()
+    {
+        if (instances.Count == 0)
+            return;
+
+        foreach (GameObject instance in instances)
+        {
+            GameObject.Destroy(instance);
+        }
+        instances.Clear();
+    }
+
+    void DeleteCurrentConditionIfFinished()
+    {        
+        Debug.Log("Condition: " + currentCondition.conditionName + " - " + currentCondition.CurrentReversalsNumber.ToString() + " out of " + reversalsToTerminate);
+        if (currentCondition.CurrentReversalsNumber >= reversalsToTerminate)
+        {
+            conditions.Remove(currentCondition);
+        }
+        ChechIfExperimentIsFinished();
+        Debug.Log("Number of conditions: " + conditions.Count.ToString());
+    }
+
+    void ChechIfExperimentIsFinished()
+    {
+        if (conditions.Count == 0)
+        {
+            hasExperimentFinished = true;
+            DeleteExistingStimuliIfExists();
+        }
+    }
+}
+
+
+
+
+
+
+
+
 
 class Condition
 {
@@ -152,6 +298,7 @@ class Condition
     public bool WanatEnhancement { get => wanatEnhancement; }
     public bool WolskiEnhancement { get => wolskiEnhancement; }
     public float CurrentDioptricDistance { get => currentDioptricDistance; }
+    public int CurrentReversalsNumber { get => currentReversalsNumber; }
 
     public Condition(float startDioptricDistance, float distanceStep, string conditionName, bool wanatEnhancement = false, bool wolskiEnhancement = false)
     {
@@ -193,7 +340,7 @@ class Condition
         if (isAnswerCorrect != lastAnswer)
             currentReversalsNumber++;
 
-        Debug.Log(CurrentDioptricDistance);
+        lastAnswer = isAnswerCorrect;
     }
 
     public void ChangeDistance(int direction)
@@ -207,106 +354,6 @@ class Condition
 
     }
 }
-
-class TrialGen : MonoBehaviour
-{
-    private Transform playerCamera;
-    private GameObject instancedObject;
-
-    private List<Condition> trials;
-    private int currentTrialIndex = -1;
-
-    private List<GameObject> instances;
-
-    private int closerIndex;
-    private float baseDistance;
-    private float furtherObjectDistance;
-
-    public TrialGen(Transform playerCamera, GameObject instancedObject, List<Condition> trials)
-    {
-        instances = new List<GameObject>();
-
-        this.playerCamera = playerCamera;
-        this.instancedObject = instancedObject;
-        this.trials = trials;
-    }
-
-    public int NextTrial(float baseDistance, float angle)
-    {
-        currentTrialIndex++;
-
-        DeleteExistingStimuliIfExists();
-
-        //Check if there is any trial left
-        if (currentTrialIndex == trials.Count)
-            return -1;
-
-        Condition currentTrial = trials[currentTrialIndex];
-
-        this.baseDistance = baseDistance;
-
-        closerIndex = (int)Mathf.Round(UnityEngine.Random.value);
-        float closerAngleFactor = closerIndex * 2 - 1;
-
-        Vector3 initialPlayerDirection = playerCamera.transform.forward;
-        Vector3 initialPlayerUpVector = playerCamera.transform.up;
-        Vector3 initialPlayerPosition = playerCamera.transform.position;
-        initialPlayerPosition = new Vector3(0, 0, 0);
-        initialPlayerDirection = new Vector3(0, 0, 1);
-
-        Vector3 origin = new Vector3(0, 0, 0);
-        Vector3 position = new Vector3(0, 0, 0);
-        Quaternion rotation = Quaternion.identity;
-        GameObject instance;
-
-        for (int i = 0; i < 2; i++)
-        {
-            float angleFactor = i * 2 - 1;
-            Vector3 direction = Quaternion.Euler(0, angleFactor * angle / 2, 0) * initialPlayerDirection;
-
-            float distance = baseDistance;
-
-            if (i != closerIndex)
-            {
-                distance = 1 / (1f / baseDistance - currentTrial.CurrentDioptricDistance);
-                furtherObjectDistance = distance;
-            }
-
-            position = origin + direction * distance;
-            instance = Instantiate(instancedObject, position, rotation);
-            instance.transform.LookAt(position);
-
-            if (i != closerIndex)
-            {
-                instance.transform.localScale = instance.transform.localScale * (furtherObjectDistance / baseDistance);
-            }
-
-            instance.transform.SetParent(playerCamera, false);
-            instance.transform.Rotate(new Vector3(0, 0, 1), UnityEngine.Random.Range(0, 360));
-            instance.transform.Rotate(new Vector3(1, 0, 0), 180);
-            instances.Add(instance);
-        }
-        return 0;
-    }
-
-    void DeleteExistingStimuliIfExists()
-    {
-        if (instances.Count == 0)
-            return;
-
-        foreach (GameObject instance in instances)
-        {
-            GameObject.Destroy(instance);
-        }
-        instances.Clear();
-    }
-
-    public void CheckAnswer(int answer)
-    {
-        trials[currentTrialIndex].CheckAnswer(answer == closerIndex);
-    }
-}
-
 
 // Shuffle extension for the List
 static class MyExtensions
