@@ -3,7 +3,10 @@ guid: 4d53ec636e340fa47958a67f36bdff5d
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
-  defaultReferences: []
+  defaultReferences:
+  - playerCamera: {instanceID: 0}
+  - SkyBoxMaterial: {fileID: 2100000, guid: 415ffbd766610794a97befd8309c965f, type: 2}
+  - StimuliMaterial: {fileID: 2100000, guid: 83b6791389d58144dbfe2ac680ca90ed, type: 2}
   executionOrder: 0
   icon: {instanceID: 0}
   userData: 
