@@ -14,8 +14,8 @@ public class ExperimentLogic : MonoBehaviour
     public Material StimuliMaterial;
 
     [Header("Enhancements")]
-    public int enhancement1;
-    public int enhancement2;
+    public ContrastEnhancementWanat wanatEnhancement;
+    public ContrastEnhancementWolski wolskiEnhancement;
 
     [Header("Stimuli contrast options")]
     [Range(0f, 1f)]
@@ -136,6 +136,8 @@ public class ExperimentLogic : MonoBehaviour
     {
         Debug.Log(trials.Count);
         trialGen = new TrialGen(playerCamera, instancedObject, conditions, reversalsToTerminate);
+        trialGen.wanatEnhancement = wanatEnhancement;
+        trialGen.wolskiEnhancement = wolskiEnhancement;
     }
 }
 
@@ -152,6 +154,9 @@ class TrialGen : MonoBehaviour
 
     private List<Condition> conditions;
     private int reversalsToTerminate;
+
+    public ContrastEnhancementWanat wanatEnhancement;
+    public ContrastEnhancementWolski wolskiEnhancement;
 
     private List<GameObject> instances;
 
@@ -190,6 +195,8 @@ class TrialGen : MonoBehaviour
         int conditionIndex = UnityEngine.Random.Range(0, conditions.Count);
         currentCondition = conditions[conditionIndex];
         Debug.Log("Current condition: " + currentCondition.conditionName);
+
+        SetEnhancements();
 
         this.baseDistance = baseDistance;
 
@@ -231,6 +238,13 @@ class TrialGen : MonoBehaviour
         }
         return 0;
     }
+
+    void SetEnhancements()
+    {
+        this.wanatEnhancement.toggle = currentCondition.WanatEnhancement;
+        this.wolskiEnhancement.toggle = currentCondition.WolskiEnhancement;
+    }
+
 
     public void CheckAnswer(int answer)
     {
