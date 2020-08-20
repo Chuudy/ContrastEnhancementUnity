@@ -9,6 +9,7 @@ public class ExperimentLogic : MonoBehaviour
     [Header("Prefabs and materials")]
     public Transform playerCamera;
     public GameObject instancedObject;
+    public GameObject[] instancedObjects;
     public Material SkyBoxMaterial;
     private Material SkyBoxMaterialTmp;
     public Material StimuliMaterial;
@@ -16,6 +17,12 @@ public class ExperimentLogic : MonoBehaviour
     [Header("Enhancements")]
     public ContrastEnhancementWanat wanatEnhancement;
     public ContrastEnhancementWolski wolskiEnhancement;
+
+    [Header("UI")]
+    public GameObject feedBackObjectCorrect;
+    public GameObject feedBackObjectInCorrect;
+    public GameObject Instructions;
+    public GameObject Ending;
 
     [Header("Stimuli contrast options")]
     [Range(0f, 1f)]
@@ -26,15 +33,16 @@ public class ExperimentLogic : MonoBehaviour
     [Header("Stimuli transform options")]
     public float angleBetweenCenters = 30;
     public float baseDistance = 5;
+
+    [Header("Experiment settings")]
+    public int reversalsToTerminate = 20;
     [Range(0.001f, 0.2f)]
     public float startingDioptricDistance = 0.1f;
-
-    [Header("Experiment sewttings")]
-    public int numberOfTrialsPerCondition = 20;
-    public string resultsFilename = "results.csv";
-    public int blankScreenTime = 1;
-    public int reversalsToTerminate = 20;
     public float dioptricDistanceStep = 0.005f;
+    public int blankScreenTime = 1;
+
+    [Header("Results output")]
+    public string resultsFilename = "results.csv";
 
 
     private List<Condition> conditions;
@@ -48,9 +56,10 @@ public class ExperimentLogic : MonoBehaviour
     void Start()
     {
         InitializeMaterials();
-        InitializeConditionsandTrials();
+        InitializeConditions();
 
         CreateTrialGenerator();
+        FileWriter.CreateResultsFile(resultsFilename);
     }
 
     // Update is called once per frame
@@ -58,6 +67,10 @@ public class ExperimentLogic : MonoBehaviour
     {
         KeyboardInput();
         UpdateMaterials();
+        trialGen.Update();
+
+        if (trialGen.HasExperimentFinished)
+            ShowEnding();
     }
 
     void KeyboardInput()
@@ -68,58 +81,43 @@ public class ExperimentLogic : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.Space))
         {
             trialGen.StartExperiment();
+            HideInstructions();
             NextTrial();
         }
         if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
             trialGen.CheckAnswer(0);
+            ShowFeedback(trialGen.Answer);
             NextTrial();
         }
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
             trialGen.CheckAnswer(1);
+            ShowFeedback(trialGen.Answer);
             NextTrial();
+        }
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            QuitExperiment();
         }
     }
 
-    void InitializeConditionsandTrials()
-    {
-        SelectConditions();
-        PopulateTrials();
-    }
-
     // Here add conditions manually
-    void SelectConditions() 
+    void InitializeConditions() 
     {
         conditions = new List<Condition>();
 
         //cond 0
-        Condition noEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, "no enhancement");
+        Condition noEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, baseDistance, "no enhancement");
         conditions.Add(noEnhancement);
 
-        ////cond 1
-        Condition wanatEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, "wanat", true, false);
-        conditions.Add(wanatEnhancement);
+        //////cond 1
+        //Condition wanatEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, baseDistance, "wanat", true, false);
+        //conditions.Add(wanatEnhancement);
 
-        ////cond 2
-        Condition wolskiEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, "wolski", false, true);
-        conditions.Add(wolskiEnhancement);
-    }
-
-    void PopulateTrials()
-    {
-        trials = new List<Condition>();
-
-        for (int i = 0; i < conditions.Count; i++)
-        {
-            for (int j = 0; j < numberOfTrialsPerCondition; j++)
-            {
-                Condition tmpCondtion = conditions[i];
-                trials.Add(tmpCondtion);
-            }
-        }
-
-        trials.Shuffle();
+        //////cond 2
+        //Condition wolskiEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, baseDistance, "wolski", false, true);
+        //conditions.Add(wolskiEnhancement);
     }
 
     void InitializeMaterials()
@@ -137,11 +135,11 @@ public class ExperimentLogic : MonoBehaviour
 
     void CreateTrialGenerator()
     {
-        Debug.Log(trials.Count);
         trialGen = new TrialGen(playerCamera, instancedObject, conditions, reversalsToTerminate);
         trialGen.blankScreenTime = blankScreenTime;
         trialGen.wanatEnhancement = wanatEnhancement;
         trialGen.wolskiEnhancement = wolskiEnhancement;
+        trialGen.instancedObjects = instancedObjects;
     }
 
     void NextTrial()
@@ -165,6 +163,45 @@ public class ExperimentLogic : MonoBehaviour
     {
         inputBlocked = false;
     }
+
+    void ShowFeedback(bool answer)
+    {
+        if (trialGen.HasExperimentFinished || !trialGen.HasExperimentStarted)
+            return;
+
+        if (answer)
+            feedBackObjectCorrect.active = true;
+        else
+            feedBackObjectInCorrect.active = true;
+
+
+        Invoke("RemoveFeedback", 0.75f);
+    }
+
+    void RemoveFeedback()
+    {
+        feedBackObjectCorrect.active = false;
+        feedBackObjectInCorrect.active = false;
+    }
+
+    void HideInstructions()
+    {
+        Instructions.active = false;
+    }
+
+    void ShowEnding()
+    {
+        Ending.active = true;
+    }
+
+    void QuitExperiment()
+    {
+        #if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+        #else
+            Application.Quit();
+        #endif
+    }
 }
 
 
@@ -177,6 +214,8 @@ class TrialGen : MonoBehaviour
 {
     private Transform playerCamera;
     private GameObject instancedObject;
+    public GameObject[] instancedObjects;
+    private List<GameObject> objectsToInstance;
 
     private List<Condition> conditions;
     private int reversalsToTerminate;
@@ -198,14 +237,28 @@ class TrialGen : MonoBehaviour
     private bool hasExperimentStarted = false;
     private bool hasExperimentFinished = false;
 
+    private float timer;
+
+    private bool answer;
+
+    public bool Answer { get => answer; }
+    public bool HasExperimentFinished { get => hasExperimentFinished; }
+    public bool HasExperimentStarted { get => hasExperimentStarted; }
+
     public TrialGen(Transform playerCamera, GameObject instancedObject, List<Condition> conditions, int reversalsToTerminate)
     {
         instances = new List<GameObject>();
+        objectsToInstance = new List<GameObject>();
 
         this.playerCamera = playerCamera;
         this.instancedObject = instancedObject;
         this.conditions = conditions;
         this.reversalsToTerminate = reversalsToTerminate;
+    }
+
+    public void Update()
+    {
+        timer += Time.deltaTime;
     }
 
     public void StartExperiment()
@@ -227,6 +280,7 @@ class TrialGen : MonoBehaviour
         Debug.Log("Current condition: " + currentCondition.conditionName);
 
         SetEnhancements();
+        SetRandomGameObjects();
 
         closerIndex = (int)Mathf.Round(UnityEngine.Random.value);
         float closerAngleFactor = closerIndex * 2 - 1;
@@ -251,7 +305,7 @@ class TrialGen : MonoBehaviour
             }
 
             position = origin + direction * distance;
-            instance = Instantiate(instancedObject, position, rotation);
+            instance = Instantiate(objectsToInstance[i], position, rotation);
             instance.transform.LookAt(position);
 
             if (i != closerIndex)
@@ -264,6 +318,8 @@ class TrialGen : MonoBehaviour
             instance.transform.Rotate(new Vector3(1, 0, 0), 180);
             instances.Add(instance);
         }
+
+        ZerOutTimer();
     }
 
     void SetEnhancements()
@@ -273,12 +329,15 @@ class TrialGen : MonoBehaviour
     }
 
 
-    public void CheckAnswer(int answer)
+    public void CheckAnswer(int leftOrRight)
     {
         if (!hasExperimentStarted || hasExperimentFinished)
             return;
 
-        currentCondition.CheckAnswer(answer == closerIndex);
+        answer = (leftOrRight == closerIndex);
+        currentCondition.CheckAnswer(answer);
+
+        FileWriter.AddRecord(currentCondition.conditionName, GetDioptricDistance(), answer, timer);
 
         DeleteStimuliIfExists();
         DeleteCurrentConditionIfFinished();
@@ -315,6 +374,34 @@ class TrialGen : MonoBehaviour
             DeleteStimuliIfExists();
         }
     }
+
+    void ZerOutTimer()
+    {
+        timer = 0;
+    }
+
+    float GetDioptricDistance()
+    {
+        float baseDistanceDiopter = 1 / baseDistance;
+        float furtherDistanceDiopter = 1 / furtherObjectDistance;
+        return baseDistanceDiopter - furtherDistanceDiopter;
+    }
+
+    void SetRandomGameObjects()
+    {
+        if (objectsToInstance.Count != 0)
+            objectsToInstance.Clear();
+
+        int baseIndex = UnityEngine.Random.Range(0, 3);
+        int furtherIndex = UnityEngine.Random.Range(0, 3);
+        while(furtherIndex == baseIndex)
+        {
+            furtherIndex = UnityEngine.Random.Range(0, 3);
+        }
+
+        objectsToInstance.Add(instancedObjects[baseIndex]);
+        objectsToInstance.Add(instancedObjects[furtherIndex]);
+    }
 }
 
 
@@ -330,22 +417,23 @@ class Condition
     public string conditionName;
     string resultsFilename;
     float distanceStep;
-    float currentDioptricDistance;
+    float currentDioptricDistanceDifference;
     readonly bool wanatEnhancement = false;
     readonly bool wolskiEnhancement = false;
 
     private int currentCorrectAnswersNumber = 0;
     private int currentReversalsNumber = 0;
     private bool lastAnswer;
+    private float baseDistance;
 
     public bool WanatEnhancement { get => wanatEnhancement; }
     public bool WolskiEnhancement { get => wolskiEnhancement; }
-    public float CurrentDioptricDistance { get => currentDioptricDistance; }
+    public float CurrentDioptricDistance { get => currentDioptricDistanceDifference; }
     public int CurrentReversalsNumber { get => currentReversalsNumber; }
 
-    public Condition(float startDioptricDistance, float distanceStep, string conditionName, bool wanatEnhancement = false, bool wolskiEnhancement = false)
+    public Condition(float startDioptricDistance, float distanceStep, float baseDistance, string conditionName, bool wanatEnhancement = false, bool wolskiEnhancement = false)
     {
-        this.currentDioptricDistance = startDioptricDistance;
+        this.currentDioptricDistanceDifference = startDioptricDistance;
         this.distanceStep = distanceStep;
         this.conditionName = conditionName;
         this.wanatEnhancement = wanatEnhancement;
@@ -356,7 +444,7 @@ class Condition
     {
         this.conditionName = _condition.conditionName;
         this.resultsFilename = _condition.resultsFilename;
-        this.currentDioptricDistance = _condition.currentDioptricDistance;
+        this.currentDioptricDistanceDifference = _condition.currentDioptricDistanceDifference;
     }
 
     public void CheckAnswer(bool isAnswerCorrect)
@@ -388,13 +476,8 @@ class Condition
 
     public void ChangeDistance(int direction)
     {
-        currentDioptricDistance = Math.Max(currentDioptricDistance + direction * distanceStep, 0.0000f);
+        currentDioptricDistanceDifference = Math.Min(Math.Max((float)System.Math.Round(System.Convert.ToDouble(currentDioptricDistanceDifference + direction * distanceStep), 3), 0.0000f), 1/baseDistance - distanceStep);
         return;
-    }
-
-    void WriteRecordToFile()
-    {
-
     }
 }
 
@@ -414,5 +497,42 @@ static class MyExtensions
             list[k] = list[n];
             list[n] = value;
         }
+    }
+}
+
+static class FileWriter
+{
+    static string participantId;
+    static string resultsFilename;
+
+    static FileWriter()
+    {
+        participantId = SystemInfo.deviceName.GetHashCode().ToString();
+    }
+
+    public static void CreateResultsFile(string resultsFilename)
+    {
+        SetResultsFilename(resultsFilename);
+
+        if (!System.IO.File.Exists(resultsFilename))
+        {
+            using (System.IO.StreamWriter file = new System.IO.StreamWriter(resultsFilename, false))
+            {
+                file.WriteLine("id,condition,distance,answer,time");
+            }
+        }
+    }
+
+    public static void AddRecord(string conditionName, float dioptricDistnaceDifference, bool answer, float time)
+    {
+        using (System.IO.StreamWriter file = new System.IO.StreamWriter(resultsFilename, true))
+        {
+            file.WriteLine(participantId + "," + conditionName + "," + dioptricDistnaceDifference + "," + answer.ToString() + "," + time.ToString());
+        }
+    }
+
+    public static void SetResultsFilename(string filename)
+    {
+        resultsFilename = filename;
     }
 }
