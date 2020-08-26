@@ -1,4 +1,4 @@
-﻿Shader "Custom/ContrastEnhancementWanatLinear"
+﻿Shader "Custom/ContrastEnhancementWolskiLog"
 {
 	Properties{
 		_MainTex("Texture", 2D) = "white" {}
@@ -54,131 +54,6 @@
 			i.pos = UnityObjectToClipPos(v.vertex);
 			i.uv = v.uv;
 			return i;
-		}
-
-		float3 rgb2yuv(float3 rgb)
-		{
-			float3x3 m_rgb2yuv = float3x3(0.299f, 0.587f, 0.114f,
-				-0.147f, -0.289f, 0.437f,
-				0.615f, -0.515f, -0.100f);
-			float3 yuv = mul(m_rgb2yuv, rgb);
-			return yuv;
-		}
-
-		float3 yuv2rgb(float3 yuv)
-		{
-			float3x3 m_yuv2rgb = float3x3(1.000f, 0.000f, 1.13983f,
-				1.000f, -0.39465f, -0.58060f,
-				1.000f, 2.03211f, 0.000f);
-			float3 rgb = mul(m_yuv2rgb, yuv);
-			return rgb;
-		}
-
-		float normpdf(in float x, in float sigma)
-		{
-			return 0.39894 * exp(-0.5 * x * x / (sigma * sigma)) / sigma;
-		}
-
-		float4 Gauss2Dk9c4(float2 uv, float sigma)
-		{
-			//declare stuff
-			const int mSize = 9;
-			float2 o = _MainTex_TexelSize.xy * 0.5;
-			const int kSize = (mSize - 1) / 2;
-			float kernel[mSize];
-			float3 final_colour = float3(0, 0, 0);
-
-			//create the 1-D kernel
-			float Z = 0.0;
-			for (int j = 0; j <= kSize; ++j)
-			{
-				kernel[kSize + j] = kernel[kSize - j] = normpdf(float(j), sigma);
-			}
-
-			//get the normalization factor (as the gaussian has been clamped)
-			for (int k = 0; k < mSize; ++k)
-			{
-				Z += kernel[k];
-			}
-
-			//read out the texels
-			for (int i = -kSize; i <= kSize; ++i)
-			{
-				for (int j = -kSize; j <= kSize; ++j)
-				{
-					final_colour += kernel[kSize + j] * kernel[kSize + i] * tex2D(_MainTex, uv + float2(i, j) * o).rgb;
-				}
-			}
-
-			return float4(final_colour / (Z * Z), 1.0);
-		}
-
-		float4 Gauss2Dk5c4(float2 uv, float sigma)
-		{
-			//declare stuff
-			const int mSize = 5;
-			float2 o = _MainTex_TexelSize.xy * 0.5;
-			const int kSize = (mSize - 1) / 2;
-			float kernel[mSize];
-			float3 final_colour = float3(0, 0, 0);
-
-			//create the 1-D kernel
-			float Z = 0.0;
-			for (int j = 0; j <= kSize; ++j)
-			{
-				kernel[kSize + j] = kernel[kSize - j] = normpdf(float(j), sigma);
-			}
-
-			//get the normalization factor (as the gaussian has been clamped)
-			for (int k = 0; k < mSize; ++k)
-			{
-				Z += kernel[k];
-			}
-
-
-			//read out the texels
-			for (int i = -kSize; i <= kSize; ++i)
-			{
-				for (int j = -kSize; j <= kSize; ++j)
-				{
-					final_colour += kernel[kSize + j] * kernel[kSize + i] * tex2D(_MainTex, uv + float2(i, j) * o).rgb;
-				}
-			}
-
-			return float4(final_colour / (Z * Z), 1.0);
-		}
-
-		float Gauss2Dk9c1(float2 uv, float sigma)
-		{
-			//declare stuff
-			const int mSize = 9;
-			float2 o = _MainTex_TexelSize.xy * 0.5;
-			const int kSize = (mSize - 1) / 2;
-			float kernel[mSize];
-			float final_colour = float3(0, 0, 0);
-
-			//create the 1-D kernel
-			float Z = 0.0;
-			for (int j = 0; j <= kSize; ++j)
-			{
-				kernel[kSize + j] = kernel[kSize - j] = normpdf(float(j), sigma);
-			}
-
-			//get the normalization factor (as the gaussian has been clamped)
-			for (int k = 0; k < mSize; ++k)
-			{
-				Z += kernel[k];
-			}
-
-			//read out the texels
-			for (int i = -kSize; i <= kSize; ++i)
-			{
-				for (int j = -kSize; j <= kSize; ++j)
-				{
-					final_colour += kernel[kSize + j] * kernel[kSize + i] * tex2D(_MainTex, uv + float2(i, j) * o);
-				}
-			}
-			return final_colour / (Z * Z);
 		}
 
 		float Gauss2Dk9c1_Opt(float2 uv)
@@ -277,41 +152,6 @@
 			return final_colour;
 		}
 
-		float Gauss2Dk5c1(float2 uv, float sigma)
-		{
-			//declare stuff
-			const int mSize = 5;
-			float2 o = _MainTex_TexelSize.xy * 0.5;
-			const int kSize = (mSize - 1) / 2;
-			float kernel[mSize];
-			float final_colour = float3(0, 0, 0);
-
-			//create the 1-D kernel
-			float Z = 0.0;
-			for (int j = 0; j <= kSize; ++j)
-			{
-				kernel[kSize + j] = kernel[kSize - j] = normpdf(float(j), sigma);
-			}
-
-			//get the normalization factor (as the gaussian has been clamped)
-			for (int k = 0; k < mSize; ++k)
-			{
-				Z += kernel[k];
-			}
-
-
-			//read out the texels
-			for (int i = -kSize; i <= kSize; ++i)
-			{
-				for (int j = -kSize; j <= kSize; ++j)
-				{
-					final_colour += kernel[kSize + j] * kernel[kSize + i] * tex2D(_MainTex, uv + float2(i, j) * o);
-				}
-			}
-
-			return final_colour / (Z * Z);
-		}
-
 		float logc(float x)
 		{
 			return pow(10, x);
@@ -352,9 +192,74 @@
 			return sensitivity * _Sensitivity;
 		}
 
+
 		float Michelson2Log(float C)
 		{
 			return 0.5 * log10((C + 1) / (1 - C));
+		}
+
+		float log2michelson(float G)
+		{
+			return (pow(10, (2 * G)) - 1) / (pow(10, (2 * G)) + 1);
+		}
+
+		float michelson2log(float C)
+		{
+			return 0.5*log10((C + 1) / (1 - C));
+		}
+
+		float beta_function(float Y, float C)
+		{
+			return  (0.00964028930664063*log10(Y) + 0.00110626220703125*C + (-0.0015)*(pow(log10(Y), 2)) + 0.0271167755126953);
+		}
+
+		float beta_function_new(float Y, float C)
+		{
+			float pars1 = 0.00952911376953125;
+			float pars2 = 0.467311859;
+			float pars3 = -0.00193869;
+			float pars4 = 0.399483489990234;
+			float pars5 = 0.0279922485351562;
+
+			return  (pars1*log10(Y) + pars2 * C + pars3 * (pow(log10(Y), 2)) + pars4 * pow(C, 2) + pars5);
+		}
+
+		float contrast_function(float Y, float beta)
+		{
+			return ((0.00964028930664063*log10(Y) + (-0.0015)*(pow(log10(Y), 2)) + 0.0271167755126953 - beta) / (-0.00110626220703125));
+		}
+
+		float contrast_function_new(float Y, float beta)
+		{
+			float pars1 = 0.00952911376953125;
+			float pars2 = 0.467311859;
+			float pars3 = -0.00193869;
+			float pars4 = 0.399483489990234;
+			float pars5 = 0.0279922485351562;
+
+			float A = pars4;
+			float B = pars2;
+			float K = pars1 * log10(Y) + pars3 * (pow(log10(Y), 2)) + pars5 - beta;
+
+			return (-B + sqrt(pow(B, 2) - 4 * A*K)) / (2 * A);
+		}
+
+		float betaBoostG(float Y_in, float Y_out, float G_est)
+		{
+			float C_in = G_est;
+			float y_in = max(Y_in, 0.3);
+			float y_out = max(Y_out, 0.001);
+			/*if (C_in < 0.1f)
+				C_in = 0.1f;*/
+			float beta = beta_function_new(y_in, C_in);
+			/*if (beta > 0.1)*/
+				//return 1;
+			float C_out = contrast_function_new(y_out, beta);
+
+			float G_est_out = C_out;
+			float m = G_est_out / max(0.0001, G_est);
+
+			return m;
 		}
 
 		float KulikowskiBoostG(float l_in, float G_in, float l_out, float rho)
@@ -392,17 +297,15 @@
 						float ret;
 						
 						float2 g0composite = tex2D(_MainTex, i.uv);
-						float2 g1composite = Gauss2Dk5c2_Opt(i.uv);
-						float2 g2composite = Gauss2Dk9c2_Opt(i.uv);
-						float2 g1compositeMatlab = tex2D(_G1, i.uv);
-						float2 g2compositeMatlab = tex2D(_G2, i.uv);
+						float2 g1composite = tex2D(_G1, i.uv);
+						float2 g2composite = tex2D(_G2, i.uv);
+						float2 g1compositeOld = Gauss2Dk5c2_Opt(i.uv);
+						float2 g2compositeOld = Gauss2Dk9c2_Opt(i.uv);
 
 
 						float g0 = g0composite.r;
-						//float g1 = Gauss2Dk5c1(i.uv, 2);
-						float g1 = g1compositeMatlab.r;
-						//float g2 = Gauss2Dk9c1(i.uv, 4);
-						float g2 = g2compositeMatlab.r;
+						float g1 = g1composite.r;
+						float g2 = g2composite.r;
 
 
 						float P_in[3];
@@ -411,17 +314,11 @@
 						P_in[2] = g2;
 
 						float2 LL2Composites[2];
-						LL2Composites[0] = g1composite;
-						LL2Composites[1] = g2composite;
+						LL2Composites[0] = g1compositeOld;
+						LL2Composites[1] = g2compositeOld;
 
 						float l_in = g2;
 						float l_out = g2;
-
-/*
-						ret = SampleCSF(1, 3)*5.82/30;*/
-						//ret = RhoAndLogLumToCSFCoordinates(2, 2.5).g;
-						//return float4(ret, ret, ret, 1);
-
 
 						for (int iter = 1; iter >= 0; iter--)
 						{
@@ -433,13 +330,8 @@
 							//float G_est = abs(C_in);
 							float G_est = sqrt(max(0, LL2Composites[iter].g - LL2Composites[iter].r * LL2Composites[iter].r));
 
-							float rho = pow(2, -(iter + 1)) * 16;
-							if (iter == 0)
-								rho = 8;
-							else
-								rho = 2.5824;
-							float m = min(KulikowskiBoostG(l_source, G_est * (iter + 1), l_target, rho), 4); // (iter + 1) works only if there are 2 layers boosted, it's done to equalize the amplitude of the contrast from Laplacian pyramid
-
+							float m = min(betaBoostG(l_source, l_target, G_est), 2);
+							
 							float C_out = C_in * m;
 
 							l_out = l_out + C_out;
@@ -447,19 +339,15 @@
 						}
 
 						float y_out = clamp(logc(l_out),0,1);
-
-						//return float4(y_out, y_out, y_out, 1);
-
-						//return float4(y_out, y_out, y_out, 1);
-
 						float3 rgb_in = tex2D(_RGBTexture, i.uv).rgb;
 						float y_in = GetLuminance(rgb_in);
 
-						float multiplier = (y_out / max(y_in, 0.0001f));
+						float maxFactor = 1 / max(max(rgb_in.r, rgb_in.g), rgb_in.b);
+
+						float multiplier = min((y_out / max(y_in, 0.0001f)), maxFactor);
 
 						float3 rgb_out = rgb_in * multiplier;
 						rgb_out = max(rgb_out - _blackLevel, 0) * (1 / (1 - _blackLevel));
-						rgb_out = rgb_out;
 
 						return float4(rgb_out, 1);
 

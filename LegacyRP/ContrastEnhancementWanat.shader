@@ -392,8 +392,8 @@
 						float ret;
 						
 						float2 g0composite = tex2D(_MainTex, i.uv);
-						float2 g1composite = Gauss2Dk5c2_Opt(i.uv);
-						float2 g2composite = Gauss2Dk9c2_Opt(i.uv);
+						//float2 g1composite = Gauss2Dk5c2_Opt(i.uv);
+						//float2 g2composite = Gauss2Dk9c2_Opt(i.uv);
 						float2 g1compositeMatlab = tex2D(_G1, i.uv);
 						float2 g2compositeMatlab = tex2D(_G2, i.uv);
 
@@ -411,8 +411,8 @@
 						P_in[2] = g2;
 
 						float2 LL2Composites[2];
-						LL2Composites[0] = g1composite;
-						LL2Composites[1] = g2composite;
+						LL2Composites[0] = g1compositeMatlab;
+						LL2Composites[1] = g2compositeMatlab;
 
 						float l_in = g2;
 						float l_out = g2;

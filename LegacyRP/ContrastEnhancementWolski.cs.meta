@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 7075dbc9888604244a43c2173ef9708d
+guid: 9e7071dbd0e8b504592656e3cfac6b08
 MonoImporter:
   externalObjects: {}
   serializedVersion: 2
   defaultReferences:
-  - contrastEnhancementShader: {fileID: 4800000, guid: 2b9596d9cb5fee44d895d5eb5f7592ec,
+  - contrastEnhancementShader: {fileID: 4800000, guid: 6d26377c7fef68f4693c8b6db6a4f715,
       type: 3}
   - lutTexture: {fileID: 2800000, guid: 6b90fb8f74b2307488ddc31ec93f779e, type: 3}
   executionOrder: 0

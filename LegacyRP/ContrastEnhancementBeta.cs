@@ -79,9 +79,9 @@ public class ContrastEnhancementBeta : MonoBehaviour
 
     private void Update()
     {
-        
-        //if (Input.GetKeyDown(KeyCode.T))
-        //    toggle = !toggle;
+
+        if (Input.GetKeyDown(KeyCode.T))
+            toggle = !toggle;
 
         //if (SteamVR_Input.GetStateDown("GrabPinch", rightHand))
         //{

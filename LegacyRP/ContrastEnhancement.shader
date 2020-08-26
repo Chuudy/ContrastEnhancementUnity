@@ -253,6 +253,26 @@
 		return final_colour / (_Z5 * _Z5);
 	}
 
+	//float2 Gauss2Dk5DiscreteForG1(float2 uv)
+	//{
+	//	//declare stuff
+	//	const int mSize = 5;
+	//	float[5] kernel = { 0.05f, 0.25f, 0.4f, 0.25f, 0.05f };
+	//	float2 o = _MainTex_TexelSize.xy;
+	//	const int kSize = (mSize - 1) / 2;
+	//	float2 final_colour = float2(0, 0);
+
+	//	//read out the texels
+	//	for (int i = -kSize; i <= kSize; ++i)
+	//	{
+	//		for (int j = -kSize; j <= kSize; ++j)
+	//		{
+	//			final_colour += kernel[kSize + j] * kernel[kSize + i] * tex2D(_MainTex, uv + float2(i, j) * o);
+	//		}
+	//	}
+	//	return final_colour;
+	//}
+
 	float Gauss2Dk5c1(float2 uv, float sigma)
 	{
 		//declare stuff
@@ -333,6 +353,8 @@
 
 				float4 FragmentProgram(Interpolators i) : SV_Target
 				{
+					float ret;
+
 					float2 g0composite = tex2D(_MainTex, i.uv);
 					float2 g1composite = Gauss2Dk5c2_Opt(i.uv);
 					float2 g2composite = Gauss2Dk9c2_Opt(i.uv);
@@ -342,11 +364,14 @@
 					float g1 = g1composite.r;
 					//float g2 = Gauss2Dk9c1(i.uv, 4);
 					float g2 = g2composite.r;
-			
+
 					float P_in[3];
 					P_in[0] = g0 - g1;
 					P_in[1] = g1 - g2;
 					P_in[2] = g2;
+
+					ret = P_in[1];
+					//return float4(ret, ret, ret, ret);
 
 					float2 LL2Composites[2];
 					LL2Composites[0] = g1composite;
@@ -372,19 +397,19 @@
 						//float G_est = abs(C_in);
 						float G_est = sqrt(max(0, LL2Composites[iter].g - LL2Composites[iter].r * LL2Composites[iter].r));
 
-						float rho = _Rho;
-						float m = min(KulikowskiBoostG(l_source, G_est, l_target, rho), 2) * _EnhancementMultiplier;
+						float rho = pow(2, -(iter + 1)) * 16;
+						float m = min(KulikowskiBoostG(l_source, G_est, l_target, rho), 4) * _EnhancementMultiplier;
 						
-						float modulation = 1 - (1 / (1 + pow(2.71828, -100 * (G_est - 0.0728))));
+						//float modulation = 1 - (1 / (1 + pow(2.71828, -100 * (G_est - 0.0728))));
 						
 						//_modulationToggle = 0;
-						if(_modulationToggle == 1)
+						/*if(_modulationToggle == 1)
 							m = m*modulation + (1 - modulation);
 
 						if (_EnhancementMultiplier < 1)
 							m = lerp(1, m, _EnhancementMultiplier);
 						else
-							m *= _EnhancementMultiplier;
+							m *= _EnhancementMultiplier;*/
 
 						float C_out = C_in * m;
 
@@ -392,7 +417,7 @@
 						l_in = l_in + P_in[iter];
 					}
 
-					float3 y_out = pow(10, l_out);
+					float y_out = pow(10, l_out);
 
 					float3 yuvOut = tex2D(_YuvlTex, i.uv).rgb;
 					yuvOut.r = y_out;

@@ -24,7 +24,7 @@ public class ContrastEnhancementWanat : MonoBehaviour
 
     [Header("Algorith parameters")]
     [Range(0.001f, 300)]
-    public float luminanceTarget = 8;
+    public float luminanceTarget = 5;
     [Range(0.001f, 300)]
     public float luminanceSource = 80;
     [Range(0.1f, 20f)]
