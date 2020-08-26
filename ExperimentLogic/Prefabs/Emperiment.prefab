@@ -1,0 +1,74 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &1414347693771428488
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1414347693771428490}
+  - component: {fileID: 1414347693771428489}
+  m_Layer: 0
+  m_Name: Emperiment
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1414347693771428490
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1414347693771428488}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 0
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1414347693771428489
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1414347693771428488}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4d53ec636e340fa47958a67f36bdff5d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerCamera: {fileID: 0}
+  instancedObject: {fileID: 9105829035957888222, guid: 61f682d496375ee47b21902337d4afee,
+    type: 3}
+  instancedObjects:
+  - {fileID: 5810462733620150633, guid: 927c338e4d80c5a4cbf0635132e44e2d, type: 3}
+  - {fileID: 557456488678532940, guid: ceb53158c079d69428f2ec3d3b3bb758, type: 3}
+  - {fileID: 7443453200494929560, guid: e3e7d00842508a0489049e0e3233bdd5, type: 3}
+  SkyBoxMaterial: {fileID: 2100000, guid: 415ffbd766610794a97befd8309c965f, type: 2}
+  StimuliMaterial: {fileID: 2100000, guid: 83b6791389d58144dbfe2ac680ca90ed, type: 2}
+  wanatEnhancement: {fileID: 0}
+  wolskiEnhancement: {fileID: 0}
+  feedBackObjectCorrect: {fileID: 0}
+  feedBackObjectInCorrect: {fileID: 0}
+  Instructions: {fileID: 0}
+  InstructionsExperiment: {fileID: 0}
+  Ending: {fileID: 0}
+  ProgresbarSlider: {fileID: 0}
+  PorgressbarText: {fileID: 0}
+  backgroundValue: 0.5
+  contrast: 0.1
+  angleBetweenCenters: 30
+  baseDistance: 5
+  reversalsToTerminate: 20
+  trialsToTerminate: 50
+  startingDioptricDistanceDifference: 0.025
+  dioptricDistanceStep: 0.002
+  blankScreenTime: 1
+  sanityCheckTrials: 10
+  resultsFilename: results.csv
