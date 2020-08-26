@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using System;
+using UnityEngine.UI;
 
 public class ExperimentLogic : MonoBehaviour
 {
@@ -23,6 +24,8 @@ public class ExperimentLogic : MonoBehaviour
     public GameObject feedBackObjectInCorrect;
     public GameObject Instructions;
     public GameObject Ending;
+    public GameObject ProgresbarSlider;
+    public GameObject PorgressbarText;
 
     [Header("Stimuli contrast options")]
     [Range(0f, 1f)]
@@ -36,8 +39,9 @@ public class ExperimentLogic : MonoBehaviour
 
     [Header("Experiment settings")]
     public int reversalsToTerminate = 20;
+    public int trialsToTerminate = 50;
     [Range(0.001f, 0.2f)]
-    public float startingDioptricDistance = 0.1f;
+    public float startingDioptricDistanceDifference = 0.1f;
     public float dioptricDistanceStep = 0.005f;
     public int blankScreenTime = 1;
 
@@ -49,17 +53,24 @@ public class ExperimentLogic : MonoBehaviour
     private List<Condition> trials;
 
     private TrialGen trialGen;
+    private float totalNumberOfReversals;
 
     bool inputBlocked;
 
     // Start is called before the first frame update
     void Start()
     {
+        if (UnityEngine.XR.XRDevice.model != "Index")
+            QuitExperiment();
+
         InitializeMaterials();
         InitializeConditions();
 
         CreateTrialGenerator();
         FileWriter.CreateResultsFile(resultsFilename);
+
+        totalNumberOfReversals = conditions.Count * reversalsToTerminate;
+
     }
 
     // Update is called once per frame
@@ -68,6 +79,7 @@ public class ExperimentLogic : MonoBehaviour
         KeyboardInput();
         UpdateMaterials();
         trialGen.Update();
+        SetProgressFeedback(trialGen.GetProgressValue());
 
         if (trialGen.HasExperimentFinished)
             ShowEnding();
@@ -108,16 +120,20 @@ public class ExperimentLogic : MonoBehaviour
         conditions = new List<Condition>();
 
         //cond 0
-        Condition noEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, baseDistance, "no enhancement");
+        Condition noEnhancement = new Condition(startingDioptricDistanceDifference, dioptricDistanceStep, baseDistance, "no enhancement");
         conditions.Add(noEnhancement);
 
-        //////cond 1
-        //Condition wanatEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, baseDistance, "wanat", true, false);
-        //conditions.Add(wanatEnhancement);
+        ////cond 1
+        Condition wanatEnhancement = new Condition(startingDioptricDistanceDifference, dioptricDistanceStep, baseDistance, "wanat", true, false);
+        conditions.Add(wanatEnhancement);
 
-        //////cond 2
-        //Condition wolskiEnhancement = new Condition(startingDioptricDistance, dioptricDistanceStep, baseDistance, "wolski", false, true);
-        //conditions.Add(wolskiEnhancement);
+        //cond 2
+        Condition wolskiEnhancement = new Condition(startingDioptricDistanceDifference, dioptricDistanceStep, baseDistance, "wolski", false, true);
+        conditions.Add(wolskiEnhancement);
+
+        //cond 0
+        Condition foo = new Condition(10, 0, baseDistance, "foo");
+        conditions.Add(foo);
     }
 
     void InitializeMaterials()
@@ -194,6 +210,13 @@ public class ExperimentLogic : MonoBehaviour
         Ending.active = true;
     }
 
+    void SetProgressFeedback(float value)
+    {
+        int valueInt = (int)(value*100);
+        ProgresbarSlider.GetComponent<Slider>().value = value;
+        PorgressbarText.GetComponent<Text>().text = valueInt.ToString() + " %";
+    }
+
     void QuitExperiment()
     {
         #if UNITY_EDITOR
@@ -219,6 +242,7 @@ class TrialGen : MonoBehaviour
 
     private List<Condition> conditions;
     private int reversalsToTerminate;
+    private int trialsToTerminate;
 
     public ContrastEnhancementWanat wanatEnhancement;
     public ContrastEnhancementWolski wolskiEnhancement;
@@ -241,6 +265,9 @@ class TrialGen : MonoBehaviour
 
     private bool answer;
 
+    private float totalNumberOfReversals;
+    private float currentNumberOfReversals;
+
     public bool Answer { get => answer; }
     public bool HasExperimentFinished { get => hasExperimentFinished; }
     public bool HasExperimentStarted { get => hasExperimentStarted; }
@@ -254,6 +281,9 @@ class TrialGen : MonoBehaviour
         this.instancedObject = instancedObject;
         this.conditions = conditions;
         this.reversalsToTerminate = reversalsToTerminate;
+
+        this.totalNumberOfReversals = conditions.Count * reversalsToTerminate;
+        this.currentNumberOfReversals = 0;
     }
 
     public void Update()
@@ -341,6 +371,7 @@ class TrialGen : MonoBehaviour
 
         DeleteStimuliIfExists();
         DeleteCurrentConditionIfFinished();
+        ComputeCurrentNumberOfReversals();
     }
 
     void DeleteStimuliIfExists()
@@ -358,7 +389,7 @@ class TrialGen : MonoBehaviour
     void DeleteCurrentConditionIfFinished()
     {        
         Debug.Log("Condition: " + currentCondition.conditionName + " - " + currentCondition.CurrentReversalsNumber.ToString() + " out of " + reversalsToTerminate);
-        if (currentCondition.CurrentReversalsNumber >= reversalsToTerminate)
+        if (currentCondition.CurrentReversalsNumber >= reversalsToTerminate || currentCondition.CurrentTrialNumber == trialsToTerminate)
         {
             conditions.Remove(currentCondition);
         }
@@ -402,6 +433,24 @@ class TrialGen : MonoBehaviour
         objectsToInstance.Add(instancedObjects[baseIndex]);
         objectsToInstance.Add(instancedObjects[furtherIndex]);
     }
+
+    void ComputeCurrentNumberOfReversals()
+    {
+        float reversals = 0;
+        foreach (Condition condition in conditions)
+        {
+            reversals += condition.CurrentReversalsNumber;
+        }
+        while (reversals < currentNumberOfReversals)
+            reversals += reversalsToTerminate;
+
+        currentNumberOfReversals = reversals;
+    }
+
+    public float GetProgressValue()
+    {
+        return currentNumberOfReversals / totalNumberOfReversals;
+    }
 }
 
 
@@ -423,6 +472,9 @@ class Condition
 
     private int currentCorrectAnswersNumber = 0;
     private int currentReversalsNumber = 0;
+    private int currentTrialNumber = 0;
+    private int reversalsToTerminate;
+    private int trialsToTerminate;
     private bool lastAnswer;
     private float baseDistance;
 
@@ -430,6 +482,9 @@ class Condition
     public bool WolskiEnhancement { get => wolskiEnhancement; }
     public float CurrentDioptricDistance { get => currentDioptricDistanceDifference; }
     public int CurrentReversalsNumber { get => currentReversalsNumber; }
+    public int CurrentTrialNumber { get => currentTrialNumber; }
+    public int ReversalsToTerminate { get => reversalsToTerminate; }
+    public int TrialsToTerminate { get => trialsToTerminate; }
 
     public Condition(float startDioptricDistance, float distanceStep, float baseDistance, string conditionName, bool wanatEnhancement = false, bool wolskiEnhancement = false)
     {
@@ -472,6 +527,7 @@ class Condition
             currentReversalsNumber++;
 
         lastAnswer = isAnswerCorrect;
+        currentTrialNumber++;
     }
 
     public void ChangeDistance(int direction)
@@ -479,7 +535,24 @@ class Condition
         currentDioptricDistanceDifference = Math.Min(Math.Max((float)System.Math.Round(System.Convert.ToDouble(currentDioptricDistanceDifference + direction * distanceStep), 3), 0.0000f), 1/baseDistance - distanceStep);
         return;
     }
+
+    public void FinishCondition(int reversals, int trialsNumber)
+    {
+        this.currentTrialNumber = trialsNumber;
+        this.currentReversalsNumber = reversals;
+    }
 }
+
+
+
+
+
+
+
+
+
+
+
 
 // Shuffle extension for the List
 static class MyExtensions
