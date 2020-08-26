@@ -23,6 +23,7 @@ public class ExperimentLogic : MonoBehaviour
     public GameObject feedBackObjectCorrect;
     public GameObject feedBackObjectInCorrect;
     public GameObject Instructions;
+    public GameObject InstructionsExperiment;
     public GameObject Ending;
     public GameObject ProgresbarSlider;
     public GameObject PorgressbarText;
@@ -55,6 +56,7 @@ public class ExperimentLogic : MonoBehaviour
 
     private TrialGen trialGen;
     private TrialGen warmupTrialGen;
+    private TrialGen currentTrialGen;
     private float totalNumberOfReversals;
 
     bool inputBlocked;
@@ -72,6 +74,8 @@ public class ExperimentLogic : MonoBehaviour
 
         CreateTrialGenerator();
 
+        currentTrialGen = warmupTrialGen;
+
         FileWriter.CreateResultsFile(resultsFilename);
 
         totalNumberOfReversals = conditions.Count * reversalsToTerminate;
@@ -83,11 +87,19 @@ public class ExperimentLogic : MonoBehaviour
     {
         KeyboardInput();
         UpdateMaterials();
-        trialGen.Update();
-        SetProgressFeedback(trialGen.ComputeProgress());
+        currentTrialGen.Update();
+        SetProgressFeedback(currentTrialGen.ComputeProgress());
 
-        if (trialGen.HasExperimentFinished)
-            ShowEnding();
+        if (currentTrialGen.HasExperimentFinished)
+        {
+            if(currentTrialGen.InstanceName == trialGen.InstanceName)
+                ShowEnding();
+            else
+            {
+                ShowExperimentStart();
+                currentTrialGen = trialGen;
+            }
+        }
     }
 
     void KeyboardInput()
@@ -97,20 +109,20 @@ public class ExperimentLogic : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            trialGen.StartExperiment();
+            currentTrialGen.StartExperiment();
             HideInstructions();
             NextTrial();
         }
         if (Input.GetKeyDown(KeyCode.LeftArrow))
         {
-            trialGen.CheckAnswer(0);
-            ShowFeedback(trialGen.Answer);
+            currentTrialGen.CheckAnswer(0);
+            ShowFeedback(currentTrialGen.Answer);
             NextTrial();
         }
         if (Input.GetKeyDown(KeyCode.RightArrow))
         {
-            trialGen.CheckAnswer(1);
-            ShowFeedback(trialGen.Answer);
+            currentTrialGen.CheckAnswer(1);
+            ShowFeedback(currentTrialGen.Answer);
             NextTrial();
         }
         if (Input.GetKeyDown(KeyCode.Escape))
@@ -118,19 +130,6 @@ public class ExperimentLogic : MonoBehaviour
             QuitExperiment();
         }
     }
-
-    void InitializeWarmupConditions()
-    {
-        List<Condition> conditions = new List<Condition>();
-
-        //cond 3
-        Condition warmupCondition = new Condition(0.19f, 0, baseDistance, "warmup");
-        warmupCondition.SetMaxTrialsAndReversals(sanityCheckTrials, sanityCheckTrials);
-        conditions.Add(warmupCondition);
-
-        warmupTrialGen = new TrialGen(playerCamera, null, conditions, 10);
-    }
-
     // Here add conditions manually
     void InitializeConditions() 
     {
@@ -172,12 +171,29 @@ public class ExperimentLogic : MonoBehaviour
 
     void CreateTrialGenerator()
     {
-        trialGen = new TrialGen(playerCamera, instancedObject, conditions, reversalsToTerminate);
+        trialGen = new TrialGen("main", playerCamera, instancedObject, conditions, reversalsToTerminate);
         trialGen.blankScreenTime = blankScreenTime;
         trialGen.wanatEnhancement = wanatEnhancement;
         trialGen.wolskiEnhancement = wolskiEnhancement;
         trialGen.instancedObjects = instancedObjects;
     }
+
+    void InitializeWarmupConditions()
+    {
+        List<Condition> conditions = new List<Condition>();
+
+        //cond 3
+        Condition warmupCondition = new Condition(0.19f, 0, baseDistance, "warmup", false, true);
+        warmupCondition.SetMaxTrialsAndReversals(sanityCheckTrials, sanityCheckTrials);
+        conditions.Add(warmupCondition);
+
+        warmupTrialGen = new TrialGen("warmup", playerCamera, null, conditions, 10);
+        warmupTrialGen.blankScreenTime = blankScreenTime;
+        warmupTrialGen.wanatEnhancement = wanatEnhancement;
+        warmupTrialGen.wolskiEnhancement = wolskiEnhancement;
+        warmupTrialGen.instancedObjects = instancedObjects;
+    }
+
 
     void NextTrial()
     {
@@ -188,7 +204,7 @@ public class ExperimentLogic : MonoBehaviour
 
     void RunTrial()
     {
-        trialGen.NextTrial(baseDistance, angleBetweenCenters);
+        currentTrialGen.NextTrial(baseDistance, angleBetweenCenters);
     }
 
     void LockInput()
@@ -203,7 +219,7 @@ public class ExperimentLogic : MonoBehaviour
 
     void ShowFeedback(bool answer)
     {
-        if (trialGen.HasExperimentFinished || !trialGen.HasExperimentStarted)
+        if (currentTrialGen.HasExperimentFinished || !currentTrialGen.HasExperimentStarted)
             return;
 
         if (answer)
@@ -224,11 +240,17 @@ public class ExperimentLogic : MonoBehaviour
     void HideInstructions()
     {
         Instructions.active = false;
+        InstructionsExperiment.active = false;
     }
 
     void ShowEnding()
     {
         Ending.active = true;
+    }
+
+    private void ShowExperimentStart()
+    {
+        InstructionsExperiment.active = true;
     }
 
     void SetProgressFeedback(float value)
@@ -256,6 +278,8 @@ public class ExperimentLogic : MonoBehaviour
 
 class TrialGen : MonoBehaviour
 {
+    private string instanceName;
+
     private Transform playerCamera;
     private GameObject instancedObject;
     public GameObject[] instancedObjects;
@@ -293,9 +317,12 @@ class TrialGen : MonoBehaviour
     public bool Answer { get => answer; }
     public bool HasExperimentFinished { get => hasExperimentFinished; }
     public bool HasExperimentStarted { get => hasExperimentStarted; }
+    public string InstanceName { get => instanceName; }
 
-    public TrialGen(Transform playerCamera, GameObject instancedObject, List<Condition> conditions, int reversalsToTerminate)
+    public TrialGen(string instanceName, Transform playerCamera, GameObject instancedObject, List<Condition> conditions, int reversalsToTerminate)
     {
+        this.instanceName = instanceName;
+
         instances = new List<GameObject>();
         objectsToInstance = new List<GameObject>();
         finishedConditions = new List<Condition>();
