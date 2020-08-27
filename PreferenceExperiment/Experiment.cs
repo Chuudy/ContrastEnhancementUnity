@@ -37,7 +37,6 @@ public class Experiment : MonoBehaviour
 
     public int nTrials; 
     private int counter = 0;
-    private int modeChangeCounter = 0;
 
     private bool experimentStarted = false;
 
@@ -52,7 +51,7 @@ public class Experiment : MonoBehaviour
     public EnhancemenVsMode mode = EnhancemenVsMode.NONE;
     public stage currentStage;
 
-    ContrastEnhancementWolski enhancementScript;
+    ContrastEnhancementWolski enhancementScriptWolski;
     ContrastEnhancementWanat enhancementScriptWanat;
 
     // epxperiment aux
@@ -62,12 +61,19 @@ public class Experiment : MonoBehaviour
 
     List<TrialGenerator> trialGenerators;
     TrialGenerator currentTrialGenerator;
+    private bool experimentFinished;
 
 
     // Start is called before the first frame update
     void Start()
     {
+        FileWriter.CreateResultsFile(filepath);
+
+        enhancementScriptWolski = GetComponent<ContrastEnhancementWolski>() as ContrastEnhancementWolski;
+        enhancementScriptWanat = GetComponent<ContrastEnhancementWanat>() as ContrastEnhancementWanat;
+
         CreateTrialGenerators();
+        ResetInstructions();
 
         playerObject.transform.position = StartLocation.transform.position;
         playerObject.transform.rotation = StartLocation.transform.rotation;
@@ -78,8 +84,6 @@ public class Experiment : MonoBehaviour
         Debug.Log(Animator.StringToHash(SystemInfo.deviceName));
         //observerId = Animator.StringToHash(SystemInfo.deviceName).ToString();
 
-        enhancementScript = GetComponent<ContrastEnhancementWolski>() as ContrastEnhancementWolski;
-        enhancementScriptWanat = GetComponent<ContrastEnhancementWanat>() as ContrastEnhancementWanat;
         nTrials = repetitions * locations.Count;
         //SetNextLocation(false);
 
@@ -89,46 +93,38 @@ public class Experiment : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        currentTrialGenerator.Update();
+        ChangeTrialGenerator();
+
         notificationCurrentTime += Time.deltaTime;
         if (notificationCurrentTime >= notificationTime)
             notificationCanvas.active = false;
 
 
-        if (experimentStarted)
+        if (currentTrialGenerator.HasExperiemntStarted)
         {
+            if (experimentFinished)
+                return;
+
             deltaTime += Time.deltaTime;
 
             if (SteamVR_Input.GetStateDown("Teleport", SteamVR_Input_Sources.RightHand))
             {
-                modeChangeCounter++;
-                enhancementScript.toggle = !enhancementScript.toggle;
-                if (mode == EnhancemenVsMode.WANAT)
-                    enhancementScriptWanat.toggle = !enhancementScript.toggle;
-                else
-                    enhancementScriptWanat.toggle = false;
+                currentTrialGenerator.SwapEnhancement();
             }
 
             if (SteamVR_Input.GetStateDown("InteractUI", SteamVR_Input_Sources.RightHand))
             {
-                if (modeChangeCounter == 0)
+                if (currentTrialGenerator.Swaps == 0)
                 {
                     notificationCanvas.active = true;
                     notificationCurrentTime = 0;
                     return;
                 }
 
-                WriteAnswer();
-                SetNextLocation();
-            }
-
-            //if (Input.GetKeyDown(KeyCode.Z))
-            //    enhancementScript.toggle = !enhancementScript.toggle;
-
-            //if (Input.GetKeyDown(KeyCode.X))
-            //{
-            //    WriteAnswer();
-            //    SetNextLocation();
-            //}
+                currentTrialGenerator.WriteAnswerToFile();
+                currentTrialGenerator.NextTrial();                
+            }            
         } 
         else
         {
@@ -144,26 +140,26 @@ public class Experiment : MonoBehaviour
         //DEPTH
         List<Condition> depthConditions = new List<Condition>();
 
-        Condition wanatConditionDepth = new Condition("wanat", repetitions, EnhancemenVsMode.WANAT, PreferenceMode.DEPTH);
+        Condition wanatConditionDepth = new Condition("wanat", repetitions, EnhancemenVsMode.WANAT, PreferenceMode.DEPTH, enhancementScriptWanat, enhancementScriptWolski);
         depthConditions.Add(wanatConditionDepth);
 
-        Condition noEnhancementConditionDepth = new Condition("noenhancement", repetitions, EnhancemenVsMode.NONE, PreferenceMode.DEPTH);
+        Condition noEnhancementConditionDepth = new Condition("noenhancement", repetitions, EnhancemenVsMode.NONE, PreferenceMode.DEPTH, enhancementScriptWanat, enhancementScriptWolski);
         depthConditions.Add(noEnhancementConditionDepth);
 
-        TrialGenerator depthTrialGen = new TrialGenerator(depthConditions, locations, PreferenceMode.DEPTH);
+        TrialGenerator depthTrialGen = new TrialGenerator(playerObject, depthConditions, locations, PreferenceMode.DEPTH);
         trialGenerators.Add(depthTrialGen);
 
 
         //APPEARANCE
         List<Condition> appearanceConditions = new List<Condition>();
 
-        Condition wanatConditionAppearance = new Condition("wanat", repetitions, EnhancemenVsMode.WANAT, PreferenceMode.APPEARANCE);
+        Condition wanatConditionAppearance = new Condition("wanat", repetitions, EnhancemenVsMode.WANAT, PreferenceMode.APPEARANCE, enhancementScriptWanat, enhancementScriptWolski);
         appearanceConditions.Add(wanatConditionAppearance);
 
-        Condition noEnhancementConditionAppearance = new Condition("noenhancement", repetitions, EnhancemenVsMode.NONE, PreferenceMode.APPEARANCE);
+        Condition noEnhancementConditionAppearance = new Condition("noenhancement", repetitions, EnhancemenVsMode.NONE, PreferenceMode.APPEARANCE, enhancementScriptWanat, enhancementScriptWolski);
         appearanceConditions.Add(noEnhancementConditionAppearance);
 
-        TrialGenerator appearanceTrialGen = new TrialGenerator(appearanceConditions, locations, PreferenceMode.APPEARANCE);
+        TrialGenerator appearanceTrialGen = new TrialGenerator(playerObject, appearanceConditions, locations, PreferenceMode.APPEARANCE);
         trialGenerators.Add(appearanceTrialGen);
 
         //Generate trials
@@ -179,8 +175,19 @@ public class Experiment : MonoBehaviour
         Debug.Log(currentTrialGenerator.GetNumberOfTrials());
     }
 
+    void ResetInstructions()
+    {
+        foreach (GameObject gameObject in instructions)
+        {
+            gameObject.active = false;
+        }
+        instructions[0].active = true;
+    }
+
     void Tutorial()
     {
+        Debug.Log("!!!!!!!!Tutorial!!!!!!!!");
+
         if (instructions[8].active)
             return;
 
@@ -190,7 +197,8 @@ public class Experiment : MonoBehaviour
             {
                 instructions[5].active = false;
                 instructions[7].active = false;
-                StartExperiment();
+                currentTrialGenerator.StartExperiment();
+                //StartExperiment();
             }
         }
 
@@ -200,7 +208,8 @@ public class Experiment : MonoBehaviour
             {
                 instructions[4].active = false;
                 instructions[6].active = false;
-                StartExperiment();
+                currentTrialGenerator.StartExperiment();
+                //StartExperiment();
             }
         }
 
@@ -212,6 +221,12 @@ public class Experiment : MonoBehaviour
                 if(currentStage == stage.Depth)
                     instructions[4].active = true;
                 else if (currentStage == stage.Appearance)
+                    instructions[6].active = true;
+
+
+                if (currentTrialGenerator.PreferenceMode == PreferenceMode.DEPTH)
+                    instructions[4].active = true;
+                else if (currentTrialGenerator.PreferenceMode == PreferenceMode.APPEARANCE)
                     instructions[6].active = true;
             }
         }
@@ -233,11 +248,8 @@ public class Experiment : MonoBehaviour
             {
                 instructions[1].active = false;
                 instructions[2].active = true;
-                enhancementScript.toggle = !enhancementScript.toggle;
-                if (mode == EnhancemenVsMode.WANAT)
-                    enhancementScriptWanat.toggle = !enhancementScript.toggle;
-                else
-                    enhancementScriptWanat.toggle = false;
+                enhancementScriptWolski.toggle = !enhancementScriptWolski.toggle;
+                enhancementScriptWanat.toggle = !enhancementScriptWolski.toggle;
                 ConfirmHint();
             }
         }
@@ -250,11 +262,8 @@ public class Experiment : MonoBehaviour
                 showChangeModeHint = false;
                 instructions[0].active = false;
                 instructions[1].active = true;
-                enhancementScript.toggle = !enhancementScript.toggle;
-                if (mode == EnhancemenVsMode.WANAT)
-                    enhancementScriptWanat.toggle = !enhancementScript.toggle;
-                else
-                    enhancementScriptWanat.toggle = false;
+                enhancementScriptWolski.toggle = !enhancementScriptWolski.toggle;
+                enhancementScriptWanat.toggle = !enhancementScriptWolski.toggle;
             }
         }
     }
@@ -299,9 +308,9 @@ public class Experiment : MonoBehaviour
 
     void RandomToggleEnhancementMode()
     {
-        enhancementScript.toggle = RandomBoolean();
+        enhancementScriptWolski.toggle = RandomBoolean();
         if (mode == EnhancemenVsMode.WANAT)
-            enhancementScriptWanat.toggle = !enhancementScript.toggle;
+            enhancementScriptWanat.toggle = !enhancementScriptWolski.toggle;
         else
             enhancementScriptWanat.toggle = false;
     }
@@ -326,10 +335,9 @@ public class Experiment : MonoBehaviour
 
         using (System.IO.StreamWriter file = new System.IO.StreamWriter(filepath, true))
         {
-            file.WriteLine(observerId + "," + phaseS + "," + (counter % locations.Count).ToString() + "," + (enhancementScript.toggle).ToString() + "," + deltaTime.ToString());
+            file.WriteLine(observerId + "," + phaseS + "," + (counter % locations.Count).ToString() + "," + (enhancementScriptWolski.toggle).ToString() + "," + deltaTime.ToString());
         }
         deltaTime = 0;
-        modeChangeCounter = 0;
     }
 
     void CreateResultsFile()
@@ -525,6 +533,36 @@ public class Experiment : MonoBehaviour
         stageNumber++;
     }
 
+    void ChangeTrialGenerator()
+    {
+        if (!currentTrialGenerator.HasExperiemntFinsihed)
+            return;
+        
+        playerObject.transform.position = StartLocation.transform.position;
+        playerObject.transform.rotation = StartLocation.transform.rotation;
+
+        if (trialGenerators.IndexOf(currentTrialGenerator) == trialGenerators.Count-1)
+        {
+            instructions[8].active = true;
+            experimentFinished = true;
+            return;
+        }
+
+        switch (currentTrialGenerator.PreferenceMode)
+        {
+            case PreferenceMode.DEPTH:
+                instructions[5].active = true;
+                break;
+            case PreferenceMode.APPEARANCE:
+                instructions[7].active = true;
+                break;
+            default:
+                break;
+        }
+
+        currentTrialGenerator = trialGenerators[trialGenerators.IndexOf(currentTrialGenerator) + 1];
+    }
+
 }
 
 
@@ -533,6 +571,7 @@ public class Experiment : MonoBehaviour
 
 class TrialGenerator
 {
+    GameObject playerObject;
     List<Condition> conditions;
     List<GameObject> locations;
     PreferenceMode preferenceMode;
@@ -544,15 +583,25 @@ class TrialGenerator
     bool hasExperiemntStarted = false;
     bool hasExperiemntFinsihed = false;
 
+    float timer = 0;
+    int swaps = 0;
+
     public bool HasExperiemntStarted { get => hasExperiemntStarted; }
     public bool HasExperiemntFinsihed { get => hasExperiemntFinsihed; }
     public PreferenceMode PreferenceMode { get => preferenceMode; }
+    public int Swaps { get => swaps; }
 
-    public TrialGenerator(List<Condition> conditions, List<GameObject> locations, PreferenceMode preferenceMode)
+    public TrialGenerator(GameObject playerObject, List<Condition> conditions, List<GameObject> locations, PreferenceMode preferenceMode)
     {
+        this.playerObject = playerObject;
         this.conditions = conditions;
         this.locations = locations;
         this.preferenceMode = preferenceMode;
+    }
+
+    public void Update()
+    {
+        timer += Time.deltaTime;
     }
 
     public void CreateTrials()
@@ -576,9 +625,17 @@ class TrialGenerator
 
     public void StartExperiment()
     {
+        if (hasExperiemntFinsihed)
+            return;
+
         hasExperiemntStarted = true;
         currentTrial = trials[0];
-        currentTrial.StartTrial();
+        currentTrial.StartTrial(playerObject);
+
+        ZeroOutTimer();
+        ZeroOutSwaps();
+
+        Debug.Log(PreferenceMode);
     }
 
     public void NextTrial()
@@ -595,12 +652,45 @@ class TrialGenerator
         }
 
         currentTrial = trials[newTrialIndex];
-        currentTrial.StartTrial();
+        currentTrial.StartTrial(playerObject);
+
+        ZeroOutTimer();
+        ZeroOutSwaps();
     }
 
     public int GetNumberOfTrials()
     {
         return trials.Count;
+    }
+
+    public void SwapEnhancement()
+    {
+        if (!hasExperiemntStarted || hasExperiemntFinsihed)
+            return;
+
+        swaps++;
+
+        Debug.Log("Swap enhancement trial gen");
+        currentTrial.SwapEnhancement();
+    }
+
+    public void ZeroOutTimer()
+    {
+        timer = 0;
+    }
+
+    public void ZeroOutSwaps()
+    {
+        swaps = 0;
+    }
+
+    public void WriteAnswerToFile()
+    {
+        if (!hasExperiemntStarted || hasExperiemntFinsihed)
+            return;
+
+        Condition tmp = currentTrial.GetCondition();
+        FileWriter.AddRecord(tmp.PrefenrenceMode.ToString(), tmp.ConditionName, locations.IndexOf(currentTrial.Location), tmp.Better, timer, swaps);
     }
 }
 
@@ -614,6 +704,8 @@ class Trial
     int locationNumber;
     GameObject location;
 
+    public GameObject Location { get => location; }
+
     public Trial()
     {
 
@@ -625,14 +717,35 @@ class Trial
         this.location = location;
     }
 
-    public void StartTrial()
+    public void StartTrial(GameObject playerObject)
     {
+        TeleportPlayer(playerObject);
+        SetRandomPlayerRotation(playerObject);
         condition.StartCondition();
     }
 
     public void SwapEnhancement()
     {
+        Debug.Log("Swap enhancement trial");
         condition.SwapEnhancement();
+    }
+
+    private void TeleportPlayer(GameObject playerObject)
+    {
+        playerObject.transform.position = location.transform.position;
+    }
+
+    private void SetRandomPlayerRotation(GameObject playerObject)
+    {
+        Quaternion randomRotation = Random.rotation;
+        Vector3 randomRotationEuler = randomRotation.eulerAngles;
+        randomRotation = Quaternion.Euler(0, randomRotationEuler.y, 0);
+        playerObject.transform.rotation = randomRotation;
+    }
+
+    public Condition GetCondition()
+    {
+        return condition.GetCopy();
     }
 }
 
@@ -645,8 +758,8 @@ class Condition
 {
     private string conditionName;
     private EnhancemenVsMode enhancementMode;
-    private PreferenceMode prefenrenceMode;
-    private bool wolskiOn;
+    private PreferenceMode preferenceMode;
+    private bool better;
     private int repetitions;
 
     ContrastEnhancementWolski wolskiEnhancement;
@@ -656,45 +769,69 @@ class Condition
     {
     }
 
-    public Condition(string conditionName, int repetitions, EnhancemenVsMode enhancementMode, PreferenceMode prefenrenceMode)
+    public Condition(string conditionName, int repetitions, EnhancemenVsMode enhancementMode, PreferenceMode preferenceMode, ContrastEnhancementWanat wanat, ContrastEnhancementWolski wolski)
     {
         this.conditionName = conditionName;
         this.repetitions = repetitions;
         this.enhancementMode = enhancementMode;
-        this.prefenrenceMode = prefenrenceMode;
+        this.preferenceMode = preferenceMode;
+        this.wanatEnhancement = wanat;
+        this.wolskiEnhancement = wolski;
+    }
+
+    public Condition GetCopy()
+    {
+        Condition tmp = new Condition(conditionName, repetitions, enhancementMode, preferenceMode, wanatEnhancement, wolskiEnhancement);
+        tmp.SetOption(better);
+        return tmp;
     }
 
     public int Repetitions { get => repetitions; }
+    public string ConditionName { get => conditionName; }
+    public EnhancemenVsMode EnhancementMode { get => enhancementMode; }
+    public PreferenceMode PrefenrenceMode { get => preferenceMode; }
+    public bool Better { get => better; }
 
     public void StartCondition()
     {
-        wolskiOn = System.Convert.ToBoolean(Random.Range(0, 2));
+        better = System.Convert.ToBoolean(Random.Range(0, 2));
+        Debug.Log(enhancementMode);
+        SetEnhancements();
     }
 
     public void SwapEnhancement()
     {
-        wolskiOn = !wolskiOn;
+        better = !better;
         SetEnhancements();
     }
 
     private void SetEnhancements()
     {
-        wolskiEnhancement.toggle = wolskiOn;
+        wolskiEnhancement.toggle = false;
+        wanatEnhancement.toggle = false;
 
+        Debug.Log(better);
         switch (enhancementMode)
         {
             case EnhancemenVsMode.NONE:
+                wolskiEnhancement.toggle = better;
                 wanatEnhancement.toggle = false;
                 break;
             case EnhancemenVsMode.WANAT:
-                wanatEnhancement.toggle = !wolskiOn;
+                wolskiEnhancement.toggle = better;
+                wanatEnhancement.toggle = !wolskiEnhancement.toggle;
                 break;
             default:
+                wolskiEnhancement.toggle = false;
+                wanatEnhancement.toggle = false;
                 break;
         }
     }
 
-
+    public void SetOption(bool option)
+    {
+        better = option;
+    }
 }
 
 
@@ -739,16 +876,16 @@ static class FileWriter
         {
             using (System.IO.StreamWriter file = new System.IO.StreamWriter(resultsFilename, false))
             {
-                file.WriteLine("id,condition,distance,answer,time");
+                file.WriteLine("id,mode,condition,location,answer,time,swaps");
             }
         }
     }
 
-    public static void AddRecord(string conditionName, float dioptricDistnaceDifference, bool answer, float time)
+    public static void AddRecord(string modeName, string conditionName, int locationIndex,  bool answer, float time, int swaps)
     {
         using (System.IO.StreamWriter file = new System.IO.StreamWriter(resultsFilename, true))
         {
-            file.WriteLine(participantId + "," + conditionName + "," + dioptricDistnaceDifference + "," + answer.ToString() + "," + time.ToString());
+            file.WriteLine(participantId + "," + modeName + "," + conditionName + "," + locationIndex.ToString() + "," + answer.ToString() + "," + time.ToString() + "," + swaps.ToString());
         }
     }
 
