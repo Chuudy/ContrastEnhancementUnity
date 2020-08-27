@@ -149,6 +149,18 @@ public class Experiment : MonoBehaviour
         trialGenerators.Add(depthTrialGen);
 
 
+
+        //DEPTH WARMUP
+        List<Condition> warmupDepthConditions = new List<Condition>();
+
+        Condition warmupDepth = new Condition("warmupDepth", 1, EnhancemenVsMode.FOODEPTH, PreferenceMode.DEPTH, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
+        warmupDepthConditions.Add(warmupDepth);
+
+        TrialGenerator warmupDepthTrialGen = new TrialGenerator(playerObject, warmupDepthConditions, locations, PreferenceMode.DEPTH);
+        //trialGenerators.Add(warmupDepthTrialGen);
+
+
+
         //APPEARANCE
         List<Condition> appearanceConditions = new List<Condition>();
 
@@ -164,13 +176,42 @@ public class Experiment : MonoBehaviour
         TrialGenerator appearanceTrialGen = new TrialGenerator(playerObject, appearanceConditions, locations, PreferenceMode.APPEARANCE);
         trialGenerators.Add(appearanceTrialGen);
 
-        //Generate trials
-        foreach (TrialGenerator generator in trialGenerators)
-            generator.CreateTrials();
+
+
+        //DEPTH WARMUP
+        List<Condition> warmupAppearConditions = new List<Condition>();
+
+        Condition warmupAppear = new Condition("warmupAppear", 1, EnhancemenVsMode.FOODEPTH, PreferenceMode.APPEARANCE, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
+        warmupAppearConditions.Add(warmupAppear);
+
+        TrialGenerator warmupAppearTrialGen = new TrialGenerator(playerObject, warmupAppearConditions, locations, PreferenceMode.APPEARANCE);
+        //trialGenerators.Add(warmupAppearTrialGen);
+
+
 
         //Random selection of the first mode
         trialGenerators.Shuffle();
+
+        //Inject warmup sessions;
+        if(trialGenerators[0].PreferenceMode == PreferenceMode.DEPTH)
+        {
+            trialGenerators.Insert(0, warmupDepthTrialGen);
+            trialGenerators.Insert(2, warmupAppearTrialGen);
+        }
+        else
+        {
+            trialGenerators.Insert(0, warmupAppearTrialGen);
+            trialGenerators.Insert(2, warmupDepthTrialGen);
+        }
+
         currentTrialGenerator = trialGenerators[0];
+
+        //Generate trials
+        foreach (TrialGenerator generator in trialGenerators)
+        {
+            generator.CreateTrials();
+            generator.PrintOutConditionName();
+        }
     }
 
     void ResetInstructions()
@@ -563,6 +604,11 @@ class TrialGenerator
 
         ConditionData data = currentTrial.GetConditionData();
         FileWriter.AddRecord(data.preferenceMode.ToString(), data.conditionName, locations.IndexOf(currentTrial.Location), data.better, timer, swaps);
+    }
+
+    public void PrintOutConditionName()
+    {
+        Debug.Log(conditions[0].ConditionName.ToString() + "   " + conditions[0].PrefenrenceMode.ToString());
     }
 }
 
