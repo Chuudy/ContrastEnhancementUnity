@@ -80,16 +80,16 @@ public class ContrastEnhancementWanat : MonoBehaviour
     {
         //Debug.Log(lutTexture.GetPixel(1023, 0));
 
-        if (Input.GetKeyDown(KeyCode.T))
-            toggle = !toggle;
+        //if (Input.GetKeyDown(KeyCode.T))
+        //    toggle = !toggle;
 
-        if (SteamVR_Input.GetStateDown("GrabPinch", rightHand))
-        {
-            toggle = !toggle;
-        }
+        //if (SteamVR_Input.GetStateDown("GrabPinch", rightHand))
+        //{
+        //    toggle = !toggle;
+        //}
 
-        if (Input.GetKeyDown(KeyCode.Escape))
-            Application.Quit();
+        //if (Input.GetKeyDown(KeyCode.Escape))
+        //    Application.Quit();
     }
 
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
