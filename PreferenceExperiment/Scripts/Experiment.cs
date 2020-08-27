@@ -48,6 +48,8 @@ public class Experiment : MonoBehaviour
 
     ContrastEnhancementWolski enhancementScriptWolski;
     ContrastEnhancementWanat enhancementScriptWanat;
+    MonoRendering monoRendering;
+    UglyImage uglyImage;
 
     // epxperiment aux
     Vector3 startPosition;
@@ -65,9 +67,12 @@ public class Experiment : MonoBehaviour
 
         enhancementScriptWolski = GetComponent<ContrastEnhancementWolski>() as ContrastEnhancementWolski;
         enhancementScriptWanat = GetComponent<ContrastEnhancementWanat>() as ContrastEnhancementWanat;
+        monoRendering = GetComponent<MonoRendering>() as MonoRendering;
+        uglyImage = GetComponent<UglyImage>() as UglyImage;
 
         CreateTrialGenerators();
         ResetInstructions();
+        instructions[0].active = true;
 
         playerObject.transform.position = StartLocation.transform.position;
         playerObject.transform.rotation = StartLocation.transform.rotation;
@@ -131,11 +136,14 @@ public class Experiment : MonoBehaviour
         //DEPTH
         List<Condition> depthConditions = new List<Condition>();
 
-        Condition wanatConditionDepth = new Condition("wanat", repetitions, EnhancemenVsMode.WANAT, PreferenceMode.DEPTH, enhancementScriptWanat, enhancementScriptWolski);
+        Condition wanatConditionDepth = new Condition("wanat", repetitions, EnhancemenVsMode.WANAT, PreferenceMode.DEPTH, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
         depthConditions.Add(wanatConditionDepth);
 
-        Condition noEnhancementConditionDepth = new Condition("noenhancement", repetitions, EnhancemenVsMode.NONE, PreferenceMode.DEPTH, enhancementScriptWanat, enhancementScriptWolski);
+        Condition noEnhancementConditionDepth = new Condition("noEnhancement", repetitions, EnhancemenVsMode.NONE, PreferenceMode.DEPTH, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
         depthConditions.Add(noEnhancementConditionDepth);
+
+        Condition fooDepth = new Condition("fooDepth", 1, EnhancemenVsMode.FOODEPTH, PreferenceMode.DEPTH, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
+        depthConditions.Add(fooDepth);
 
         TrialGenerator depthTrialGen = new TrialGenerator(playerObject, depthConditions, locations, PreferenceMode.DEPTH);
         trialGenerators.Add(depthTrialGen);
@@ -144,11 +152,14 @@ public class Experiment : MonoBehaviour
         //APPEARANCE
         List<Condition> appearanceConditions = new List<Condition>();
 
-        Condition wanatConditionAppearance = new Condition("wanat", repetitions, EnhancemenVsMode.WANAT, PreferenceMode.APPEARANCE, enhancementScriptWanat, enhancementScriptWolski);
+        Condition wanatConditionAppearance = new Condition("wanat", repetitions, EnhancemenVsMode.WANAT, PreferenceMode.APPEARANCE, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
         appearanceConditions.Add(wanatConditionAppearance);
 
-        Condition noEnhancementConditionAppearance = new Condition("noenhancement", repetitions, EnhancemenVsMode.NONE, PreferenceMode.APPEARANCE, enhancementScriptWanat, enhancementScriptWolski);
+        Condition noEnhancementConditionAppearance = new Condition("noEnhancement", repetitions, EnhancemenVsMode.NONE, PreferenceMode.APPEARANCE, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
         appearanceConditions.Add(noEnhancementConditionAppearance);
+
+        Condition fooAppear = new Condition("fooAppear", 1, EnhancemenVsMode.FOOAPPEAR, PreferenceMode.APPEARANCE, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
+        appearanceConditions.Add(fooAppear);
 
         TrialGenerator appearanceTrialGen = new TrialGenerator(playerObject, appearanceConditions, locations, PreferenceMode.APPEARANCE);
         trialGenerators.Add(appearanceTrialGen);
@@ -168,13 +179,10 @@ public class Experiment : MonoBehaviour
         {
             gameObject.active = false;
         }
-        instructions[0].active = true;
     }
 
     void Tutorial()
     {
-        Debug.Log("!!!!!!!!Tutorial!!!!!!!!");
-
         if (instructions[8].active)
             return;
 
@@ -184,8 +192,8 @@ public class Experiment : MonoBehaviour
             {
                 instructions[5].active = false;
                 instructions[7].active = false;
+                ResetInstructions();
                 currentTrialGenerator.StartExperiment();
-                //StartExperiment();
             }
         }
 
@@ -195,8 +203,8 @@ public class Experiment : MonoBehaviour
             {
                 instructions[4].active = false;
                 instructions[6].active = false;
+                ResetInstructions();
                 currentTrialGenerator.StartExperiment();
-                //StartExperiment();
             }
         }
 
@@ -627,12 +635,14 @@ class Condition
 
     ContrastEnhancementWolski wolskiEnhancement;
     ContrastEnhancementWanat wanatEnhancement;
+    MonoRendering monoRendering;
+    UglyImage uglyImage;
 
     public Condition()
     {
     }
 
-    public Condition(string conditionName, int repetitions, EnhancemenVsMode enhancementMode, PreferenceMode preferenceMode, ContrastEnhancementWanat wanat, ContrastEnhancementWolski wolski)
+    public Condition(string conditionName, int repetitions, EnhancemenVsMode enhancementMode, PreferenceMode preferenceMode, ContrastEnhancementWanat wanat, ContrastEnhancementWolski wolski, MonoRendering monoRendering, UglyImage uglyImage)
     {
         this.conditionName = conditionName;
         this.repetitions = repetitions;
@@ -640,6 +650,8 @@ class Condition
         this.preferenceMode = preferenceMode;
         this.wanatEnhancement = wanat;
         this.wolskiEnhancement = wolski;
+        this.monoRendering = monoRendering;
+        this.uglyImage = uglyImage;
     }
 
     public ConditionData GetConditionData()
@@ -669,23 +681,38 @@ class Condition
 
     private void SetEnhancements()
     {
-        wolskiEnhancement.toggle = false;
-        wanatEnhancement.toggle = false;
-
         Debug.Log(better);
         switch (enhancementMode)
         {
             case EnhancemenVsMode.NONE:
                 wolskiEnhancement.toggle = better;
                 wanatEnhancement.toggle = false;
+                monoRendering.toggle = false;
+                uglyImage.toggle = false;
                 break;
             case EnhancemenVsMode.WANAT:
                 wolskiEnhancement.toggle = better;
-                wanatEnhancement.toggle = !wolskiEnhancement.toggle;
+                wanatEnhancement.toggle = !better;
+                monoRendering.toggle = false;
+                uglyImage.toggle = false;
+                break;
+            case EnhancemenVsMode.FOODEPTH:
+                wolskiEnhancement.toggle = false;
+                wanatEnhancement.toggle = false;
+                monoRendering.toggle = !better;
+                uglyImage.toggle = false;
+                break;
+            case EnhancemenVsMode.FOOAPPEAR:
+                wolskiEnhancement.toggle = false;
+                wanatEnhancement.toggle = false;
+                monoRendering.toggle = false;
+                uglyImage.toggle = !better;
                 break;
             default:
                 wolskiEnhancement.toggle = false;
                 wanatEnhancement.toggle = false;
+                monoRendering.toggle = false;
+                uglyImage.toggle = false;
                 break;
         }
     }
@@ -782,7 +809,9 @@ static class FileWriter
 public enum EnhancemenVsMode
 {
     NONE,
-    WANAT
+    WANAT,
+    FOOAPPEAR,
+    FOODEPTH
 };
 
 public enum PreferenceMode
