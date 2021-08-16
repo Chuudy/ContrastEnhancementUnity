@@ -4,9 +4,13 @@ using UnityEngine;
 using System.Linq;
 using System;
 using UnityEngine.UI;
+using Valve.VR;
 
 public class ExperimentLogic : MonoBehaviour
 {
+    [Header("Prefabs and materials")]
+    public string participantID;
+
     [Header("Prefabs and materials")]
     public Transform playerCamera;
     public GameObject instancedObject;
@@ -61,11 +65,15 @@ public class ExperimentLogic : MonoBehaviour
 
     bool inputBlocked;
 
+    public GameObject testObject;
+
     // Start is called before the first frame update
     void Start()
     {
-        if (UnityEngine.XR.XRDevice.model != "Index")
-            QuitExperiment();
+        //if (UnityEngine.XR.XRDevice.model != "Index")
+        //    QuitExperiment();
+
+        FileWriter.SetParticipantId(participantID);
 
         InitializeMaterials();
         InitializeConditions();
@@ -107,19 +115,19 @@ public class ExperimentLogic : MonoBehaviour
         if (inputBlocked)
             return;
 
-        if (Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.Space) || SteamVR_Input.GetStateDown("Teleport", SteamVR_Input_Sources.RightHand))
         {
             currentTrialGen.StartExperiment();
             HideInstructions();
             NextTrial();
         }
-        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        if (Input.GetKeyDown(KeyCode.LeftArrow) || SteamVR_Input.GetStateDown("InteractUI", SteamVR_Input_Sources.LeftHand))
         {
             currentTrialGen.CheckAnswer(0);
             ShowFeedback(currentTrialGen.Answer);
             NextTrial();
         }
-        if (Input.GetKeyDown(KeyCode.RightArrow))
+        if (Input.GetKeyDown(KeyCode.RightArrow) || SteamVR_Input.GetStateDown("InteractUI", SteamVR_Input_Sources.RightHand))
         {
             currentTrialGen.CheckAnswer(1);
             ShowFeedback(currentTrialGen.Answer);
@@ -363,6 +371,7 @@ class TrialGen : MonoBehaviour
         SetRandomGameObjects();
 
         closerIndex = (int)Mathf.Round(UnityEngine.Random.value);
+        Debug.Log("Closer index: " + closerIndex.ToString());
         float closerAngleFactor = closerIndex * 2 - 1;
 
         Vector3 forwardDirection = new Vector3(0, 0, 1);
@@ -395,10 +404,11 @@ class TrialGen : MonoBehaviour
 
             instance.transform.SetParent(playerCamera, false);
             instance.transform.Rotate(new Vector3(0, 0, 1), UnityEngine.Random.Range(0, 360));
-            instance.transform.Rotate(new Vector3(1, 0, 0), 180);
+            //instance.transform.Rotate(new Vector3(1, 0, 0), 180);
             instances.Add(instance);
         }
 
+        Debug.Log(furtherObjectDistance);
         ZerOutTimer();
     }
 
@@ -671,6 +681,7 @@ static class FileWriter
     static FileWriter()
     {
         participantId = SystemInfo.deviceName.GetHashCode().ToString();
+        //participantId = "adwait";
     }
 
     public static void CreateResultsFile(string resultsFilename)
@@ -697,5 +708,10 @@ static class FileWriter
     public static void SetResultsFilename(string filename)
     {
         resultsFilename = filename;
+    }
+
+    public static void SetParticipantId(string participantID)
+    {
+        participantId = participantID;
     }
 }

@@ -1,4 +1,4 @@
-﻿Shader "Custom/ContrastEnhancementWolskiLog2"
+﻿Shader "Custom/ContrastEnhancementWolskiLog4"
 {
 	Properties{
 		_MainTex("Texture", 2D) = "white" {}
@@ -330,7 +330,7 @@
 							//float G_est = abs(C_in);
 							float G_est = sqrt(max(0, LL2Composites[iter].g - LL2Composites[iter].r * LL2Composites[iter].r));
 
-							float m = min(betaBoostG(l_source, l_target, G_est), 2);
+							float m = min(betaBoostG(l_source, l_target, G_est), 4);
 							
 							float C_out = C_in * m;
 
