@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Valve.VR;
+using UnityEngine.UI;
 
 public class Experiment : MonoBehaviour
 {
@@ -10,6 +11,10 @@ public class Experiment : MonoBehaviour
         Depth,
         Appearance
     }
+
+    [Header("Participant")]
+    public string participantID = "id";
+
 
     [Header("Game objects")]
     public GameObject playerObject;
@@ -31,12 +36,12 @@ public class Experiment : MonoBehaviour
     [Header("UI")]
     public GameObject[] instructions;
     public GameObject notificationCanvas;
+    public GameObject boundary;
+    public GameObject progressBarSlider;
+    public GameObject progressBarText;
+    public GameObject taskText;
     float notificationCurrentTime = 0;
     public float notificationTime = 2;
-
-
-    public int nTrials; 
-    private int counter = 0;
 
     private bool experimentStarted = false;
 
@@ -48,7 +53,7 @@ public class Experiment : MonoBehaviour
 
     ContrastEnhancementWolski enhancementScriptWolski;
     ContrastEnhancementWanat enhancementScriptWanat;
-    MonoRendering monoRendering;
+    WeakendStereo monoRendering;
     UglyImage uglyImage;
 
     // epxperiment aux
@@ -59,20 +64,24 @@ public class Experiment : MonoBehaviour
     TrialGenerator currentTrialGenerator;
     private bool experimentFinished;
 
+    private float NumberOfAllTrials;
+    private float NumberOfFinishedTrials;
 
     // Start is called before the first frame update
     void Start()
     {
         FileWriter.CreateResultsFile(filepath);
+        FileWriter.SetParticipantId(participantID);
 
         enhancementScriptWolski = GetComponent<ContrastEnhancementWolski>() as ContrastEnhancementWolski;
         enhancementScriptWanat = GetComponent<ContrastEnhancementWanat>() as ContrastEnhancementWanat;
-        monoRendering = GetComponent<MonoRendering>() as MonoRendering;
+        monoRendering = GetComponent<WeakendStereo>() as WeakendStereo;
         uglyImage = GetComponent<UglyImage>() as UglyImage;
 
         CreateTrialGenerators();
         ResetInstructions();
         instructions[0].active = true;
+        boundary.active = true;
 
         playerObject.transform.position = StartLocation.transform.position;
         playerObject.transform.rotation = StartLocation.transform.rotation;
@@ -81,8 +90,6 @@ public class Experiment : MonoBehaviour
         
         Debug.Log(Animator.StringToHash(SystemInfo.deviceName));
         //observerId = Animator.StringToHash(SystemInfo.deviceName).ToString();
-
-        nTrials = repetitions * locations.Count;
         //SetNextLocation(false);
 
         ChangeModeHint();
@@ -91,6 +98,11 @@ public class Experiment : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        if (Input.GetKeyDown(KeyCode.Escape))
+        {
+            QuitExperiment();
+        }
+
         currentTrialGenerator.Update();
         ChangeTrialGenerator();
 
@@ -119,7 +131,8 @@ public class Experiment : MonoBehaviour
                 }
 
                 currentTrialGenerator.WriteAnswerToFile();
-                currentTrialGenerator.NextTrial();                
+                currentTrialGenerator.NextTrial();
+                SetProgressFeedback();
             }            
         } 
         else
@@ -153,7 +166,7 @@ public class Experiment : MonoBehaviour
         //DEPTH WARMUP
         List<Condition> warmupDepthConditions = new List<Condition>();
 
-        Condition warmupDepth = new Condition("warmupDepth", 1, EnhancemenVsMode.FOODEPTH, PreferenceMode.DEPTH, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
+        Condition warmupDepth = new Condition("warmup", 1, EnhancemenVsMode.FOODEPTH, PreferenceMode.DEPTH, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
         warmupDepthConditions.Add(warmupDepth);
 
         TrialGenerator warmupDepthTrialGen = new TrialGenerator(playerObject, warmupDepthConditions, locations, PreferenceMode.DEPTH);
@@ -181,7 +194,7 @@ public class Experiment : MonoBehaviour
         //DEPTH WARMUP
         List<Condition> warmupAppearConditions = new List<Condition>();
 
-        Condition warmupAppear = new Condition("warmupAppear", 1, EnhancemenVsMode.FOODEPTH, PreferenceMode.APPEARANCE, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
+        Condition warmupAppear = new Condition("warmup", 1, EnhancemenVsMode.FOOAPPEAR, PreferenceMode.APPEARANCE, enhancementScriptWanat, enhancementScriptWolski, monoRendering, uglyImage);
         warmupAppearConditions.Add(warmupAppear);
 
         TrialGenerator warmupAppearTrialGen = new TrialGenerator(playerObject, warmupAppearConditions, locations, PreferenceMode.APPEARANCE);
@@ -220,6 +233,15 @@ public class Experiment : MonoBehaviour
         {
             gameObject.active = false;
         }
+        boundary.active = false;
+    }
+
+    void ResetEnhancements()
+    {
+        enhancementScriptWanat.toggle = false;
+        enhancementScriptWolski.toggle = false;
+        uglyImage.toggle = false;
+        monoRendering.toggle = false;
     }
 
     void Tutorial()
@@ -227,26 +249,39 @@ public class Experiment : MonoBehaviour
         if (instructions[8].active)
             return;
 
-        if (instructions[5].active || instructions[7].active)
-        {
-            if (SteamVR_Input.GetStateDown("InteractUI", SteamVR_Input_Sources.Any))
-            {
-                instructions[5].active = false;
-                instructions[7].active = false;
-                ResetInstructions();
-                currentTrialGenerator.StartExperiment();
-            }
-        }
+        //if (instructions[5].active || instructions[7].active)
+        //{
+        //    if (SteamVR_Input.GetStateDown("InteractUI", SteamVR_Input_Sources.Any))
+        //    {
+        //        instructions[5].active = false;
+        //        instructions[7].active = false;
+        //        ResetInstructions();
+        //        currentTrialGenerator.StartExperiment();
+        //    }
+        //}
 
-        if (instructions[4].active || instructions[6].active)
+        //if (instructions[4].active || instructions[6].active)
+        //{
+        //    if (SteamVR_Input.GetStateDown("InteractUI", SteamVR_Input_Sources.Any))
+        //    {
+        //        instructions[4].active = false;
+        //        instructions[6].active = false;
+        //        ResetInstructions();
+        //        currentTrialGenerator.StartExperiment();
+        //    }
+        //}
+
+        if(instructions[4].active || instructions[5].active || instructions[6].active || instructions[7].active || instructions[9].active || instructions[10].active)
         {
+            boundary.active = true;
+            SetProgressFeedback();
             if (SteamVR_Input.GetStateDown("InteractUI", SteamVR_Input_Sources.Any))
             {
-                instructions[4].active = false;
-                instructions[6].active = false;
                 ResetInstructions();
                 currentTrialGenerator.StartExperiment();
+                SetProgressFeedback();
             }
+            return;
         }
 
         if (instructions[3].active)
@@ -258,6 +293,7 @@ public class Experiment : MonoBehaviour
                 else if (currentTrialGenerator.PreferenceMode == PreferenceMode.APPEARANCE)
                     instructions[6].active = true;
             }
+            return;
         }
 
         if (instructions[2].active)
@@ -269,6 +305,7 @@ public class Experiment : MonoBehaviour
                 instructions[2].active = false;
                 instructions[3].active = true;
             }
+            return;
         }
 
         if (instructions[1].active)
@@ -277,10 +314,12 @@ public class Experiment : MonoBehaviour
             {
                 instructions[1].active = false;
                 instructions[2].active = true;
-                enhancementScriptWolski.toggle = !enhancementScriptWolski.toggle;
-                enhancementScriptWanat.toggle = !enhancementScriptWolski.toggle;
+                //enhancementScriptWolski.toggle = !enhancementScriptWolski.toggle;
+                //enhancementScriptWanat.toggle = !enhancementScriptWolski.toggle;
+                uglyImage.toggle = false;
                 ConfirmHint();
             }
+            return;
         }
 
         if (instructions[0].active)
@@ -291,9 +330,11 @@ public class Experiment : MonoBehaviour
                 showChangeModeHint = false;
                 instructions[0].active = false;
                 instructions[1].active = true;
-                enhancementScriptWolski.toggle = !enhancementScriptWolski.toggle;
-                enhancementScriptWanat.toggle = !enhancementScriptWolski.toggle;
+                //enhancementScriptWolski.toggle = !enhancementScriptWolski.toggle;
+                //enhancementScriptWanat.toggle = !enhancementScriptWolski.toggle;
+                uglyImage.toggle = true;
             }
+            return;
         }
     }
 
@@ -451,7 +492,9 @@ public class Experiment : MonoBehaviour
     {
         if (!currentTrialGenerator.HasExperiemntFinsihed)
             return;
-        
+
+        ResetEnhancements();
+
         playerObject.transform.position = StartLocation.transform.position;
         playerObject.transform.rotation = StartLocation.transform.rotation;
 
@@ -459,22 +502,74 @@ public class Experiment : MonoBehaviour
         {
             instructions[8].active = true;
             experimentFinished = true;
+            boundary.active = true;
             return;
         }
+
+        currentTrialGenerator = trialGenerators[trialGenerators.IndexOf(currentTrialGenerator) + 1];
 
         switch (currentTrialGenerator.PreferenceMode)
         {
             case PreferenceMode.DEPTH:
-                instructions[5].active = true;
+                if(trialGenerators.IndexOf(currentTrialGenerator) == 1 || trialGenerators.IndexOf(currentTrialGenerator) == 3)
+                    instructions[9].active = true;
+                else
+                    instructions[5].active = true;
                 break;
             case PreferenceMode.APPEARANCE:
-                instructions[7].active = true;
+                if (trialGenerators.IndexOf(currentTrialGenerator) == 1 || trialGenerators.IndexOf(currentTrialGenerator) == 3)
+                    instructions[10].active = true;
+                else
+                    instructions[7].active = true;
                 break;
             default:
                 break;
         }
+    }
 
-        currentTrialGenerator = trialGenerators[trialGenerators.IndexOf(currentTrialGenerator) + 1];
+    float GetProgress()
+    {
+        NumberOfAllTrials = 0;
+        NumberOfFinishedTrials = 0;
+
+        foreach (TrialGenerator generator in trialGenerators)
+        {
+            NumberOfAllTrials += generator.GetNumberOfTrials();
+            NumberOfAllTrials -= 1;
+            NumberOfFinishedTrials += generator.GetNumberOfFinishedTrials();
+        }
+
+        float progress = (NumberOfFinishedTrials / NumberOfAllTrials);
+
+        Debug.Log("Progress: " + ((int)(progress*100)).ToString() + "%");
+
+        return progress;
+    }
+
+    void SetProgressFeedback()
+    {
+        progressBarSlider.active = true;
+        progressBarText.active = true;
+        taskText.active = true;
+
+
+        float value = GetProgress();
+        int valueInt = (int)(value * 100);
+        progressBarSlider.GetComponent<Slider>().value = value;
+        progressBarText.GetComponent<Text>().text = valueInt.ToString() + " %";
+        if(currentTrialGenerator.PreferenceMode == PreferenceMode.DEPTH)
+            taskText.GetComponent<Text>().text = "Task: Depth";
+        else
+            taskText.GetComponent<Text>().text = "Task: Appearance";
+    }
+    
+    void QuitExperiment()
+    {
+        #if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+        #else
+                Application.Quit();
+        #endif
     }
 
 }
@@ -535,6 +630,8 @@ class TrialGenerator
         }
 
         trials.Shuffle();
+
+        currentTrial = trials[0];
     }
 
     public void StartExperiment()
@@ -575,6 +672,11 @@ class TrialGenerator
     public int GetNumberOfTrials()
     {
         return trials.Count;
+    }
+
+    public int GetNumberOfFinishedTrials()
+    {
+        return trials.IndexOf(currentTrial);
     }
 
     public void SwapEnhancement()
@@ -681,14 +783,14 @@ class Condition
 
     ContrastEnhancementWolski wolskiEnhancement;
     ContrastEnhancementWanat wanatEnhancement;
-    MonoRendering monoRendering;
+    WeakendStereo monoRendering;
     UglyImage uglyImage;
 
     public Condition()
     {
     }
 
-    public Condition(string conditionName, int repetitions, EnhancemenVsMode enhancementMode, PreferenceMode preferenceMode, ContrastEnhancementWanat wanat, ContrastEnhancementWolski wolski, MonoRendering monoRendering, UglyImage uglyImage)
+    public Condition(string conditionName, int repetitions, EnhancemenVsMode enhancementMode, PreferenceMode preferenceMode, ContrastEnhancementWanat wanat, ContrastEnhancementWolski wolski, WeakendStereo monoRendering, UglyImage uglyImage)
     {
         this.conditionName = conditionName;
         this.repetitions = repetitions;
@@ -843,6 +945,11 @@ static class FileWriter
     public static void SetResultsFilename(string filename)
     {
         resultsFilename = filename;
+    }
+
+    public static void SetParticipantId(string participantID)
+    {
+        participantId = participantID;
     }
 }
 

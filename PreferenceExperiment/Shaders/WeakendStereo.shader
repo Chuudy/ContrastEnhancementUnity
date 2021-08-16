@@ -1,4 +1,4 @@
-﻿Shader "Custom/UglyImage"
+﻿Shader "Custom/WeakendStereo"
 {
 	Properties{
 		_MainTex("Texture", 2D) = "white" {}
@@ -330,7 +330,7 @@
 							//float G_est = abs(C_in);
 							float G_est = sqrt(max(0, LL2Composites[iter].g - LL2Composites[iter].r * LL2Composites[iter].r));
 
-							float m = min(betaBoostG(l_source, l_target, G_est), 2);
+							float m = min(betaBoostG(l_source, l_target, G_est), 4);
 							
 							float C_out = C_in * m;
 
@@ -338,7 +338,7 @@
 							l_in = l_in + P_in[iter];
 						}
 
-						float y_out = clamp(logc(g1),0,1);
+						float y_out = clamp(logc(l_out),0,1);
 						float3 rgb_in = tex2D(_RGBTexture, i.uv).rgb;
 						float y_in = GetLuminance(rgb_in);
 
@@ -346,8 +346,7 @@
 
 						float multiplier = min((y_out / max(y_in, 0.0001f)), maxFactor);
 
-						float alpha = 0.4;
-						float3 rgb_out = (rgb_in * (1- alpha) + y_out * alpha) * multiplier;
+						float3 rgb_out = rgb_in * multiplier;
 						rgb_out = max(rgb_out - _blackLevel, 0) * (1 / (1 - _blackLevel));
 
 						return float4(rgb_out, 1);
